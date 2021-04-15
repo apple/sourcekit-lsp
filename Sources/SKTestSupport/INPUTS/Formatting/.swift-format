@@ -1,0 +1,4 @@
+This file is intentionally an invalid swift-format configuration file. It is used to test 
+the behavior when program cannot find a valid file. We cannot just left this directory blank, 
+because swift-format searches for the configuration in parent directories, and it's possible 
+that user has another configuration file somewhere outside the Tests.

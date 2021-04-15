@@ -1,0 +1,8 @@
+{
+  "sources": [
+    "Root.swift", 
+    "Directory/Directory.swift", 
+    "Directory/NestedWithConfig/NestedWithConfig.swift", 
+    "Directory/NestedWithoutConfig/NestedWithoutConfig.swift"
+  ]
+}

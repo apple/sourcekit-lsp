@@ -454,6 +454,10 @@ extension ClangLanguageServerShim {
     forwardRequestToClangdOnQueue(req)
   }
 
+  func documentFormatting(_ req: Request<DocumentFormattingRequest>) {
+    forwardRequest(req, to: clangd)
+  }
+
   func documentColor(_ req: Request<DocumentColorRequest>) {
     queue.async {
       if self.capabilities?.colorProvider?.isSupported == true {

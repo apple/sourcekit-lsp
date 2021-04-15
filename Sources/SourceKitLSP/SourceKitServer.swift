@@ -93,6 +93,7 @@ public final class SourceKitServer: LanguageServer {
     registerToolchainTextDocumentRequest(SourceKitServer.documentSymbolHighlight, nil)
     registerToolchainTextDocumentRequest(SourceKitServer.foldingRange, nil)
     registerToolchainTextDocumentRequest(SourceKitServer.documentSymbol, nil)
+    registerToolchainTextDocumentRequest(SourceKitServer.documentFormatting, nil)
     registerToolchainTextDocumentRequest(SourceKitServer.documentColor, [])
     registerToolchainTextDocumentRequest(SourceKitServer.documentSemanticTokens, nil)
     registerToolchainTextDocumentRequest(SourceKitServer.documentSemanticTokensDelta, nil)
@@ -544,6 +545,7 @@ extension SourceKitServer {
         codeActionOptions: CodeActionOptions(codeActionKinds: nil),
         supportsCodeActions: true
       )),
+      documentFormattingProvider: true,
       colorProvider: .bool(true),
       foldingRangeProvider: .bool(true),
       executeCommandProvider: ExecuteCommandOptions(
@@ -839,6 +841,14 @@ extension SourceKitServer {
     languageService: ToolchainLanguageServer
   ) {
     languageService.documentSymbol(req)
+  }
+
+  func documentFormatting(
+    _ req: Request<DocumentFormattingRequest>,
+    workspace: Workspace,
+    languageService: ToolchainLanguageServer
+  ) {
+    languageService.documentFormatting(req)
   }
 
   func documentColor(

@@ -48,6 +48,7 @@ let package = Package(
           "SKCore",
           "SourceKitD",
           "SKSwiftPMWorkspace",
+          .product(name: "SwiftFormat", package: "swift-format"),
           .product(name: "SwiftToolsSupport-auto", package: "swift-tools-support-core"),
         ],
         exclude: ["CMakeLists.txt"]),
@@ -238,6 +239,7 @@ if ProcessInfo.processInfo.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
     .package(name: "IndexStoreDB", url: "https://github.com/apple/indexstore-db.git", .branch("main")),
     .package(name: "SwiftPM", url: "https://github.com/apple/swift-package-manager.git", .branch("main")),
     .package(url: "https://github.com/apple/swift-tools-support-core.git", .branch("main")),
+    .package(url: "https://github.com/apple/swift-format.git", .branch("swift-5.3-branch")),
     .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "0.3.0")),
   ]
 } else {
@@ -245,6 +247,7 @@ if ProcessInfo.processInfo.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
     .package(name: "IndexStoreDB", path: "../indexstore-db"),
     .package(name: "SwiftPM", path: "../swiftpm"),
     .package(path: "../swift-tools-support-core"),
+    .package(path: "../swift-format"),
     .package(path: "../swift-argument-parser")
   ]
 }

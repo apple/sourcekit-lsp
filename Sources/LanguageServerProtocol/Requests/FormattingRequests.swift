@@ -28,6 +28,11 @@ public struct DocumentFormattingRequest: TextDocumentRequest, Hashable {
 
   /// Options to customize the formatting.
   public var options: FormattingOptions
+
+  public init(textDocument: TextDocumentIdentifier, options: FormattingOptions) {
+    self.textDocument = textDocument
+    self.options = options
+  }
 }
 
 /// Request to format a specified range within a document.
@@ -97,4 +102,9 @@ public struct FormattingOptions: Codable, Hashable {
 
   /// Whether to use spaces instead of tabs.
   public var insertSpaces: Bool
+
+  public init(tabSize: Int, insertSpaces: Bool) {
+    self.tabSize = tabSize
+    self.insertSpaces = insertSpaces
+  }
 }

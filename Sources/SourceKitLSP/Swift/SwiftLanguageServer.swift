@@ -18,6 +18,8 @@ import SKCore
 import SKSupport
 import SourceKitD
 import TSCBasic
+import SwiftFormat
+import SwiftFormatConfiguration
 
 fileprivate extension Range {
   /// Checks if this range overlaps with the other range, counting an overlap with an empty range as a valid overlap.
@@ -248,6 +250,7 @@ extension SwiftLanguageServer {
         clientCapabilities: initialize.capabilities.textDocument?.codeAction,
         codeActionOptions: CodeActionOptions(codeActionKinds: [.quickFix, .refactor]),
         supportsCodeActions: true)),
+      documentFormattingProvider: true,
       colorProvider: .bool(true),
       foldingRangeProvider: .bool(true),
       executeCommandProvider: ExecuteCommandOptions(
@@ -584,6 +587,48 @@ extension SwiftLanguageServer {
       }
       // FIXME: cancellation
       _ = handle
+    }
+  }
+
+  public func documentFormatting(_ req: Request<DocumentFormattingRequest>) {
+    self.queue.async {
+      guard let file = req.params.textDocument.uri.fileURL else {
+        req.reply(nil)
+        return
+      }
+      guard let snapshot = self.documentManager.latestSnapshot(req.params.textDocument.uri) else {
+        log("failed to find snapshot for url \(req.params.textDocument.uri)")
+        req.reply(nil)
+        return
+      }
+      let configuration: SwiftFormatConfiguration.Configuration
+      // try to load swift-format configuration from a ".swift-format" file
+      // if it fails, use values provided by the lsp
+      if let configUrl = Configuration.url(forConfigurationFileApplyingTo: file),
+         let config = try? Configuration(contentsOf: configUrl) {
+          configuration = config
+      } else {
+        var config = SwiftFormatConfiguration.Configuration()
+        let options = req.params.options
+        config.indentation = options.insertSpaces ? .spaces(options.tabSize) : .tabs(1)
+        config.tabWidth = options.tabSize
+        configuration = config
+      }
+
+      let formatter = SwiftFormat.SwiftFormatter(configuration: configuration)
+      do {
+        guard let lastLine = snapshot.lineTable.last else {
+          req.reply(nil)
+          return
+        }
+        let lastPosition = Position(line: snapshot.lineTable.count-1, utf16index: lastLine.utf16.count)
+        var edit = TextEdit(range: Position(line: 0, utf16index: 0)..<lastPosition, newText: "")
+        try formatter.format(source: snapshot.text, assumingFileURL: file, to: &edit.newText)
+        req.reply([edit])
+      } catch {
+        log("failed to format document: \(error)", level: .error)
+        req.reply(nil)
+      }
     }
   }
 

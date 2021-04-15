@@ -46,7 +46,7 @@ SourceKit-LSP is still in early development, so you may run into rough edges wit
 | Workspace Symbols | ✅ | |
 | Global Rename | ❌ | |
 | Local Refactoring | ✅ | |
-| Formatting | ❌ | |
+| Formatting | ✅ | Whole file at once only. |
 | Folding | ✅ | |
 | Syntax Highlighting | ❌ | Not currently part of LSP. |
 | Document Symbols | ✅ |  |
@@ -59,3 +59,5 @@ SourceKit-LSP is still in early development, so you may run into rough edges wit
 
 * SourceKit-LSP does not update its global index in the background, but instead relies on indexing-while-building to provide data. This only affects global queries like find-references and jump-to-definition.
 	* **Workaround**: build the project to update the index
+
+* Formatting uses swift-format, which requires a specific toolchain version. You can learn more at the [swift-format readme.](https://github.com/apple/swift-format#matching-swift-format-to-your-swift-version)
