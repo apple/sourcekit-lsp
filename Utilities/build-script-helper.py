@@ -97,6 +97,9 @@ def handle_invocation(swift_exec, args):
   if not args.no_local_deps:
     env['SWIFTCI_USE_LOCAL_DEPS'] = "1"
 
+  # Always use the toolchain's package description module.
+  env['SWIFTCI_USE_TOOLCHAIN_PACKAGE_DESCRIPTION'] = "1"
+
   if args.ninja_bin:
     env['NINJA_BIN'] = args.ninja_bin
 

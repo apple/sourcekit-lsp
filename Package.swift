@@ -83,9 +83,14 @@ let package = Package(
           "BuildServerProtocol",
           "LanguageServerProtocol",
           "SKCore",
-          .product(name: "SwiftPM-auto", package: "SwiftPM")
-        ],
-        exclude: ["CMakeLists.txt"]),
+          .product(name: "SwiftPM-auto", package: "SwiftPM"),
+        ] + (useLocalPackageDescriptionModule() ? [
+          .product(name: "PackageDescription", package: "SwiftPM"),
+        ] : []),
+        exclude: ["CMakeLists.txt"],
+        swiftSettings: useLocalPackageDescriptionModule() ? [
+          .define("USE_LOCAL_PACKAGE_DESCRIPTION_MODULE")
+        ] : []),
 
       .testTarget(
         name: "SKSwiftPMWorkspaceTests",
@@ -247,4 +252,12 @@ if ProcessInfo.processInfo.environment["SWIFTCI_USE_LOCAL_DEPS"] == nil {
     .package(path: "../swift-tools-support-core"),
     .package(path: "../swift-argument-parser")
   ]
+}
+
+func useLocalPackageDescriptionModule() -> Bool {
+  // By default, create a local PackageDescription module to ensure it stays
+  // in sync with libSwiftPM during development. To install sourcekit-lsp as
+  // part of the toolchain we use the toolchain's own PackageDescription, and
+  // rely on the whole toolchain being built from the same swiftpm sources.
+  return ProcessInfo.processInfo.environment["SWIFTCI_USE_TOOLCHAIN_PACKAGE_DESCRIPTION"] == nil
 }
