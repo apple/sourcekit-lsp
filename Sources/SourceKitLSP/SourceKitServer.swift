@@ -861,7 +861,7 @@ extension SourceKitServer {
       return false
     }
     let language = snapshot.document.language
-    return workspace.capabilityRegistry.hasSemanticTokensRegistration(for: [language])
+    return workspace.capabilityRegistry.hasSemanticTokensRegistration(for: language)
   }
 
   func documentSemanticTokens(

@@ -221,7 +221,6 @@ public final class SwiftLanguageServer: ToolchainLanguageServer {
 
     do {
       try documentManager.replaceSemanticTokens(uri, tokens: tokens)
-      
     } catch {
       log("updating semantic tokens for \(uri) failed: \(error)", level: .warning)
     }

@@ -165,6 +165,7 @@ extension SemanticTokensTests {
       ("testSemanticTokens", testSemanticTokens),
       ("testSemanticTokensForEnumMembers", testSemanticTokensForEnumMembers),
       ("testSemanticTokensForFunctionSignatures", testSemanticTokensForFunctionSignatures),
+      ("testSemanticTokensForFunctionSignaturesWithEmoji", testSemanticTokensForFunctionSignaturesWithEmoji),
       ("testSemanticTokensForProtocols", testSemanticTokensForProtocols),
       ("testSemanticTokensForStaticMethods", testSemanticTokensForStaticMethods),
       ("testSyntacticTokens", testSyntacticTokens),

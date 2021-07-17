@@ -32,7 +32,6 @@ public struct SyntaxHighlightingToken: Hashable {
   }
 
   public init(
-    name: String? = nil,
     start: Position,
     length: Int,
     kind: Kind,
@@ -45,9 +44,9 @@ public struct SyntaxHighlightingToken: Hashable {
   }
 
   /// Splits a potentially multi-line token to multiple single-line tokens.
-  public func splitToSingleLineTokens(in snapshot: DocumentSnapshot) -> [Self]? {
+  public func splitToSingleLineTokens(in snapshot: DocumentSnapshot) -> [Self] {
     guard let startIndex = snapshot.index(of: start) else {
-      return nil
+      fatalError("Token \(self) begins outside of the document")
     }
 
     let endIndex = snapshot.text.index(startIndex, offsetBy: length)
@@ -104,8 +103,7 @@ public struct SyntaxHighlightingToken: Hashable {
     case `operator`
 
     /// The name of the token type used by LSP.
-    /// **Public for testing.**
-    public var lspName: String {
+    var lspName: String {
       switch self {
       case .namespace: return "namespace"
       case .type: return "type"
@@ -130,6 +128,11 @@ public struct SyntaxHighlightingToken: Hashable {
       case .regexp: return "regexp"
       case .operator: return "operator"
       }
+    }
+
+    /// **Public for testing**
+    public var _lspName: String {
+      lspName
     }
   }
 
@@ -169,8 +172,7 @@ public struct SyntaxHighlightingToken: Hashable {
     /// The name of the modifier used by LSP, if this
     /// is a single modifier. Note that every modifier
     /// in `allCases` must have an associated `lspName`.
-    /// **Public for testing.**
-    public var lspName: String? {
+    var lspName: String? {
       switch self {
       case .declaration: return "declaration"
       case .definition: return "definition"
@@ -184,6 +186,11 @@ public struct SyntaxHighlightingToken: Hashable {
       case .defaultLibrary: return "defaultLibrary"
       default: return nil
       }
+    }
+
+    /// **Public for testing**
+    public var _lspName: String? {
+      lspName
     }
 
     public init(rawValue: UInt32) {
@@ -207,6 +214,11 @@ extension Array where Element == SyntaxHighlightingToken {
         // only if the token is on the previous token's line.
         previous.line == token.start.line ? previous.utf16index : 0
       )
+
+      // We assert that the tokens are actually sorted
+      assert(lineDelta >= 0)
+      assert(charDelta >= 0)
+
       previous = token.start
       rawTokens += [
         UInt32(lineDelta),
@@ -259,7 +271,7 @@ struct SyntaxHighlightingTokenParser {
       if useName && [.function, .method, .enumMember].contains(kind) && modifiers.contains(.declaration),
          let name: String = response[keys.name],
          name.contains("("),
-         let funcNameLength: Int = name.split(separator: "(").first?.count {
+         let funcNameLength: Int = name.split(separator: "(").first?.utf16.count {
         length = funcNameLength
       }
 
@@ -277,9 +289,7 @@ struct SyntaxHighlightingTokenParser {
         modifiers: modifiers
       )
 
-      if let newTokens = multiLineToken.splitToSingleLineTokens(in: snapshot) {
-        tokens += newTokens
-      }
+      tokens += multiLineToken.splitToSingleLineTokens(in: snapshot)
     }
 
     if let substructure: SKDResponseArray = response[keys.substructure] {

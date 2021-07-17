@@ -23,7 +23,7 @@ public struct DocumentTokens {
   /// Semantic tokens, e.g. variable references, type references, ...
   public var semantic: [SyntaxHighlightingToken] = []
 
-  public var merged: [SyntaxHighlightingToken] {
+  private var merged: [SyntaxHighlightingToken] {
     [lexical, syntactic, semantic].reduce([]) { $0.mergingTokens(with: $1) }
   }
   public var mergedAndSorted: [SyntaxHighlightingToken] {
@@ -174,19 +174,11 @@ public final class DocumentManager {
           let lastLineLengthDelta = newLines.last!.count - lastLineReplaceLength
           let lineDelta = newLines.count - previousLineCount
 
-          func isTokenBounding(character: Character) -> Bool {
-            character.isWhitespace || character.isPunctuation || character.isSymbol
-          }
-
-          func update(tokens: inout [SyntaxHighlightingToken]) {
+          document.latestTokens.withMutableTokensOfEachKind { tokens in
             tokens = Array(tokens.lazy
               .filter {
-                // Only keep tokens that don't overlap with or are directly
-                // adjacent to the edit range and also are adjacent to a
-                // token-bounding character.
-                $0.start > range.upperBound || range.lowerBound > $0.sameLineEnd
-                || ($0.start == range.upperBound && (edit.text.first.map(isTokenBounding(character:)) ?? true))
-                || ($0.sameLineEnd == range.lowerBound && (edit.text.last.map(isTokenBounding(character:)) ?? true))
+                // Only keep tokens that don't overlap with the edit range
+                $0.start >= range.upperBound || range.lowerBound >= $0.sameLineEnd
               }
               .map {
                 // Shift tokens after the edit range
@@ -201,8 +193,6 @@ public final class DocumentManager {
                 return token
               })
           }
-
-          document.latestTokens.withMutableTokensOfEachKind(update(tokens:))
         } else {
           // Full text replacement.
           document.latestLineTable = LineTable(edit.text)
@@ -259,7 +249,7 @@ public final class DocumentManager {
   ///
   /// - parameter uri: The URI of the document to be updated
   /// - parameter range: The range to replace tokens in (nil means the entire document)
-  /// - parameter tokens: The tokens to be added
+  /// - parameter newTokens: The tokens to be added
   @discardableResult
   public func replaceLexicalTokens(
     _ uri: DocumentURI,
@@ -271,16 +261,14 @@ public final class DocumentManager {
         throw Error.missingDocument(uri)
       }
 
-      if !newTokens.isEmpty {
-        if let range = range {
-          document.latestTokens.lexical.removeAll {
-            // Remove overlapping or bounding tokens
-            $0.start <= range.upperBound && range.lowerBound <= $0.sameLineEnd
-          }
-        }
-
-        document.latestTokens.lexical += newTokens
+      // Remove all tokens in `range` (or the entire document if `range` is `nil`)
+      document.latestTokens.lexical.removeAll { token in
+        range.map {
+          token.start <= $0.upperBound && $0.lowerBound <= token.sameLineEnd
+        } ?? true
       }
+
+      document.latestTokens.lexical += newTokens
 
       return document.latestSnapshot
     }

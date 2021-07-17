@@ -51,8 +51,8 @@ final class SemanticTokensTests: XCTestCase {
               range: .bool(true),
               full: .bool(true)
             ),
-            tokenTypes: Token.Kind.allCases.map(\.lspName),
-            tokenModifiers: Token.Modifiers.allCases.map { $0.lspName! },
+            tokenTypes: Token.Kind.allCases.map(\._lspName),
+            tokenModifiers: Token.Modifiers.allCases.map { $0._lspName! },
             formats: [.relative]
           )
         )
@@ -317,6 +317,15 @@ final class SemanticTokensTests: XCTestCase {
       Token(start: Position(line: 0, utf16index: 10), length: 3, kind: .struct),
       Token(start: Position(line: 0, utf16index: 15), length: 1, kind: .keyword),
       Token(start: Position(line: 0, utf16index: 20), length: 6, kind: .struct),
+    ])
+  }
+
+  func testSemanticTokensForFunctionSignaturesWithEmoji() {
+    let text = "func 👍abc() {}"
+    let tokens = performSemanticTokensRequest(text: text)
+    XCTAssertEqual(tokens, [
+      Token(start: Position(line: 0, utf16index: 0), length: 4, kind: .keyword),
+      Token(start: Position(line: 0, utf16index: 5), length: 5, kind: .function, modifiers: .declaration),
     ])
   }
 
