@@ -177,8 +177,10 @@ public final class DocumentManager {
           document.latestTokens.withMutableTokensOfEachKind { tokens in
             tokens = Array(tokens.lazy
               .filter {
-                // Only keep tokens that don't overlap with the edit range
-                $0.start >= range.upperBound || range.lowerBound >= $0.sameLineEnd
+                // Only keep tokens that don't overlap or bound with the edit range
+                $0.start >= range.upperBound
+                || range.lowerBound >= $0.sameLineEnd
+                || range.isEmpty
               }
               .map {
                 // Shift tokens after the edit range
@@ -264,7 +266,9 @@ public final class DocumentManager {
       // Remove all tokens in `range` (or the entire document if `range` is `nil`)
       document.latestTokens.lexical.removeAll { token in
         range.map {
-          token.start <= $0.upperBound && $0.lowerBound <= token.sameLineEnd
+          token.start <= $0.upperBound
+          && $0.lowerBound <= token.sameLineEnd
+          && !$0.isEmpty
         } ?? true
       }
 

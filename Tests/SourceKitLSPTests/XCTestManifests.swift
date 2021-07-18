@@ -160,8 +160,16 @@ extension SemanticTokensTests {
     // to regenerate.
     static let __allTests__SemanticTokensTests = [
       ("testEmpty", testEmpty),
+      ("testEmptyEdit", testEmptyEdit),
+      ("testInsertNewline", testInsertNewline),
+      ("testInsertSpaceAfterToken", testInsertSpaceAfterToken),
+      ("testInsertSpaceBeforeToken", testInsertSpaceBeforeToken),
       ("testIntArrayCoding", testIntArrayCoding),
       ("testRanged", testRanged),
+      ("testRemoveNewline", testRemoveNewline),
+      ("testReplaceUntilEndOfToken", testReplaceUntilEndOfToken),
+      ("testReplaceUntilMiddleOfToken", testReplaceUntilMiddleOfToken),
+      ("testSemanticMultiEdit", testSemanticMultiEdit),
       ("testSemanticTokens", testSemanticTokens),
       ("testSemanticTokensForEnumMembers", testSemanticTokensForEnumMembers),
       ("testSemanticTokensForFunctionSignatures", testSemanticTokensForFunctionSignatures),

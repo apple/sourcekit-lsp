@@ -519,7 +519,11 @@ extension SwiftLanguageServer {
             lastResponse = try? self.sourcekitd.sendSync(req)
           }
 
-          if let dict = lastResponse, let snapshot = self.documentManager.latestSnapshot(uri) {
+          // SourceKit seems to respond with an empty substructure after sending an
+          // empty range for an edit, causing all syntactic tokens to get removed
+          // therefore we only update them if the range is non-empty.
+
+          if !(edit.range?.isEmpty ?? false), let dict = lastResponse, let snapshot = self.documentManager.latestSnapshot(uri) {
             self.updateLexicalAndSyntacticTokens(response: dict, for: snapshot)
           }
         }
