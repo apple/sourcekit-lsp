@@ -513,10 +513,9 @@ extension SwiftLanguageServer {
     let keys = self.keys
 
     self.queue.async {
-      let uri = note.textDocument.uri
       var lastResponse: SKDResponseDictionary? = nil
 
-      self.documentManager.edit(note) { (before: DocumentSnapshot, edit: TextDocumentContentChangeEvent) in
+      let snapshot = self.documentManager.edit(note) { (before: DocumentSnapshot, edit: TextDocumentContentChangeEvent) in
         let req = SKDRequestDictionary(sourcekitd: self.sourcekitd)
         req[keys.request] = self.requests.editor_replacetext
         req[keys.name] = note.textDocument.uri.pseudoPath
@@ -545,7 +544,7 @@ extension SwiftLanguageServer {
         }
       }
 
-      if let dict = lastResponse, let snapshot = self.documentManager.latestSnapshot(uri) {
+      if let dict = lastResponse, let snapshot = snapshot {
         let compileCommand = self.commandsByFile[note.textDocument.uri]
         self.publishDiagnostics(response: dict, for: snapshot, compileCommand: compileCommand)
       }

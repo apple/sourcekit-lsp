@@ -270,7 +270,8 @@ extension DocumentManager {
     }
   }
 
-  /// Convenience wrapper for `edit(_:newVersion:edits:beforeCallback:)` that logs on failure.
+  /// Convenience wrapper for `edit(_:newVersion:edits:beforeCallback:afterCallback:)`
+  /// that logs on failure.
   @discardableResult
   func edit(
     _ note: DidChangeTextDocumentNotification,

@@ -235,14 +235,21 @@ extension Array where Element == SyntaxHighlightingToken {
 
 extension Range where Bound == Position {
   /// Splits a potentially multi-line range to multiple single-line ranges.
-  fileprivate func splitToSingleLineRanges(in snapshot: DocumentSnapshot) -> [Self] {
+  fileprivate func splitToSingleLineRanges(
+    in snapshot: DocumentSnapshot,
+    omittingEmptyRanges: Bool = true
+  ) -> [Self] {
+    if lowerBound.line == upperBound.line {
+      return omittingEmptyRanges && isEmpty ? [] : [self]
+    }
+
     guard let startIndex = snapshot.index(of: lowerBound),
           let endIndex = snapshot.index(of: upperBound) else {
       fatalError("Range \(self) reaches outside of the document")
     }
 
     let text = snapshot.text[startIndex..<endIndex]
-    let lines = text.split(separator: "\n")
+    let lines = text.split(separator: "\n", omittingEmptySubsequences: omittingEmptyRanges)
 
     return lines
       .enumerated()
