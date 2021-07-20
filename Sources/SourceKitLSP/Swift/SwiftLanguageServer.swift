@@ -161,6 +161,111 @@ public final class SwiftLanguageServer: ToolchainLanguageServer {
     }
   }
 
+  /// Updates the lexical and syntactic tokens for the given `snapshot`.
+  /// Must be called on `self.queue`.
+  private func updateLexicalAndSyntacticTokens(
+    response: SKDResponseDictionary,
+    for snapshot: DocumentSnapshot
+  ) {
+    dispatchPrecondition(condition: .onQueue(queue))
+
+    let uri = snapshot.document.uri
+    let docTokens = updatedLexicalAndSyntacticTokens(response: response, for: snapshot)
+
+    do {
+      try documentManager.updateTokens(uri, tokens: docTokens)
+    } catch {
+      log("Updating lexical and syntactic tokens failed: \(error)", level: .warning)
+    }
+  }
+
+  /// Returns the updated lexical and syntactic tokens for the given `snapshot`.
+  private func updatedLexicalAndSyntacticTokens(
+    response: SKDResponseDictionary,
+    for snapshot: DocumentSnapshot
+  ) -> DocumentTokens {
+    var docTokens = snapshot.tokens
+
+    guard let offset: Int = response[keys.offset],
+          let length: Int = response[keys.length],
+          let start: Position = snapshot.positionOf(utf8Offset: offset),
+          let end: Position = snapshot.positionOf(utf8Offset: offset + length) else {
+      log("updateLexicalAndSyntacticTokens failed, no range found", level: .error)
+      return docTokens
+    }
+
+    let range = start..<end
+
+    // If the range is empty we don't have to (and shouldn't) update anything.
+    // This is important, since the substructure may be empty, causing us to
+    // unnecessarily remove all syntactic tokens.
+    guard !range.isEmpty else {
+      return docTokens
+    }
+
+    if let syntaxMap: SKDResponseArray = response[keys.syntaxmap] {
+      let tokenParser = SyntaxHighlightingTokenParser(sourcekitd: sourcekitd)
+      let tokens = tokenParser.parseTokens(syntaxMap, in: snapshot)
+
+      docTokens.replaceLexical(in: range, with: tokens)
+    }
+
+    if let substructure: SKDResponseArray = response[keys.substructure] {
+      let tokenParser = SyntaxHighlightingTokenParser(sourcekitd: sourcekitd, useName: true)
+      let tokens = tokenParser.parseTokens(substructure, in: snapshot)
+
+      docTokens.syntactic = tokens
+    }
+
+    return docTokens
+  }
+
+  /// Updates the semantic tokens for the given `snapshot`.
+  /// Must be called on `self.queue`.
+  private func updateSemanticTokens(
+    response: SKDResponseDictionary,
+    for snapshot: DocumentSnapshot
+  ) {
+    dispatchPrecondition(condition: .onQueue(queue))
+
+    let uri = snapshot.document.uri
+    let docTokens = updatedSemanticTokens(response: response, for: snapshot)
+
+    do {
+      try documentManager.updateTokens(uri, tokens: docTokens)
+    } catch {
+      log("Updating semantic tokens failed: \(error)", level: .warning)
+    }
+  }
+
+  /// Returns the updated semantic tokens for the given `snapshot`.
+  private func updatedSemanticTokens(
+    response: SKDResponseDictionary,
+    for snapshot: DocumentSnapshot
+  ) -> DocumentTokens {
+    var docTokens = snapshot.tokens
+
+    if let skTokens: SKDResponseArray = response[keys.annotations] {
+      let tokenParser = SyntaxHighlightingTokenParser(sourcekitd: sourcekitd)
+      let tokens = tokenParser.parseTokens(skTokens, in: snapshot)
+
+      docTokens.semantic = tokens
+    }
+
+    return docTokens
+  }
+
+  /// Inform the client about changes to the syntax highlighting tokens.
+  private func requestTokensRefresh() {
+    if clientCapabilities.workspace?.semanticTokens?.refreshSupport ?? false {
+      _ = client.send(WorkspaceSemanticTokensRefreshRequest(), queue: queue) { result in
+        if let error = result.failure {
+          log("refreshing tokens failed: \(error)", level: .warning)
+        }
+      }
+    }
+  }
+
   /// Publish diagnostics for the given `snapshot`. We withhold semantic diagnostics if we are using
   /// fallback arguments.
   ///
@@ -211,7 +316,7 @@ public final class SwiftLanguageServer: ToolchainLanguageServer {
     }
     let compileCommand = self.commandsByFile[uri]
 
-    // Make the magic 0,0 replacetext request to update diagnostics.
+    // Make the magic 0,0 replacetext request to update diagnostics and semantic tokens.
 
     let req = SKDRequestDictionary(sourcekitd: sourcekitd)
     req[keys.request] = requests.editor_replacetext
@@ -222,6 +327,8 @@ public final class SwiftLanguageServer: ToolchainLanguageServer {
 
     if let dict = try? self.sourcekitd.sendSync(req) {
       publishDiagnostics(response: dict, for: snapshot, compileCommand: compileCommand)
+      updateSemanticTokens(response: dict, for: snapshot)
+      requestTokensRefresh()
     }
   }
 }
@@ -254,7 +361,13 @@ extension SwiftLanguageServer {
       colorProvider: .bool(true),
       foldingRangeProvider: .bool(true),
       executeCommandProvider: ExecuteCommandOptions(
-        commands: builtinSwiftCommands)
+        commands: builtinSwiftCommands),
+      semanticTokensProvider: SemanticTokensOptions(
+        legend: SemanticTokensLegend(
+          tokenTypes: SyntaxHighlightingToken.Kind.allCases.map(\.lspName),
+          tokenModifiers: SyntaxHighlightingToken.Modifiers.allCases.map { $0.lspName! }),
+        range: .bool(true),
+        full: .bool(true))
     ))
   }
 
@@ -285,7 +398,8 @@ extension SwiftLanguageServer {
   /// Should be called on self.queue.
   private func reopenDocument(_ snapshot: DocumentSnapshot, _ compileCmd: SwiftCompileCommand?) {
     let keys = self.keys
-    let path = snapshot.document.uri.pseudoPath
+    let uri = snapshot.document.uri
+    let path = uri.pseudoPath
 
     let closeReq = SKDRequestDictionary(sourcekitd: self.sourcekitd)
     closeReq[keys.request] = self.requests.editor_close
@@ -306,6 +420,7 @@ extension SwiftLanguageServer {
     }
     self.publishDiagnostics(
         response: dict, for: snapshot, compileCommand: compileCmd)
+    self.updateLexicalAndSyntacticTokens(response: dict, for: snapshot)
   }
 
   public func documentUpdatedBuildSettings(_ uri: DocumentURI, change: FileBuildSettingsChange) {
@@ -370,6 +485,7 @@ extension SwiftLanguageServer {
         return
       }
       self.publishDiagnostics(response: dict, for: snapshot, compileCommand: compileCommand)
+      self.updateLexicalAndSyntacticTokens(response: dict, for: snapshot)
     }
   }
 
@@ -419,8 +535,13 @@ extension SwiftLanguageServer {
         }
 
         req[keys.sourcetext] = edit.text
-
         lastResponse = try? self.sourcekitd.sendSync(req)
+      } afterCallback: { (after: DocumentSnapshot) in
+        if let dict = lastResponse {
+          return self.updatedLexicalAndSyntacticTokens(response: dict, for: after)
+        } else {
+          return nil
+        }
       }
 
       if let dict = lastResponse, let snapshot = snapshot {
@@ -703,18 +824,43 @@ extension SwiftLanguageServer {
   }
 
   public func documentSemanticTokens(_ req: Request<DocumentSemanticTokensRequest>) {
-    // FIXME: implement semantic tokens support.
-    req.reply(nil)
+    let uri = req.params.textDocument.uri
+
+    queue.async {
+      guard let snapshot = self.documentManager.latestSnapshot(uri) else {
+        log("failed to find snapshot for uri \(uri)")
+        req.reply(DocumentSemanticTokensResponse(data: []))
+        return
+      }
+
+      let tokens = snapshot.tokens.mergedAndSorted
+      let encodedTokens = tokens.lspEncoded
+
+      req.reply(DocumentSemanticTokensResponse(data: encodedTokens))
+    }
   }
 
   public func documentSemanticTokensDelta(_ req: Request<DocumentSemanticTokensDeltaRequest>) {
-    // FIXME: implement semantic tokens support.
+    // FIXME: implement semantic tokens delta support.
     req.reply(nil)
   }
 
   public func documentSemanticTokensRange(_ req: Request<DocumentSemanticTokensRangeRequest>) {
-    // FIXME: implement semantic tokens support.
-    req.reply(nil)
+    let uri = req.params.textDocument.uri
+    let range = req.params.range
+
+    queue.async {
+      guard let snapshot = self.documentManager.latestSnapshot(uri) else {
+        log("failed to find snapshot for uri \(uri)")
+        req.reply(DocumentSemanticTokensResponse(data: []))
+        return
+      }
+
+      let tokens = snapshot.tokens.mergedAndSorted.filter { $0.range.overlaps(range) }
+      let encodedTokens = tokens.lspEncoded
+
+      req.reply(DocumentSemanticTokensResponse(data: encodedTokens))
+    }
   }
 
   public func colorPresentation(_ req: Request<ColorPresentationRequest>) {

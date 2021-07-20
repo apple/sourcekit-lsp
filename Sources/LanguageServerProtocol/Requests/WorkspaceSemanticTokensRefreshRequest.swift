@@ -16,4 +16,6 @@
 public struct WorkspaceSemanticTokensRefreshRequest: RequestType, Hashable {
   public static let method: String = "workspace/semanticTokens/refresh"
   public typealias Response = VoidResponse
+
+  public init() {}
 }

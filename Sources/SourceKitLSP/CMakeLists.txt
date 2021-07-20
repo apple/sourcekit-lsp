@@ -30,6 +30,7 @@ target_sources(SourceKitLSP PRIVATE
   Swift/SourceKitD+ResponseError.swift
   Swift/SwiftCommand.swift
   Swift/SwiftLanguageServer.swift
+  Swift/SyntaxHighlightingToken.swift
   Swift/VariableTypeInfo.swift)
 set_target_properties(SourceKitLSP PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})

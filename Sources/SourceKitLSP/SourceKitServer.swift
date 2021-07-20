@@ -855,12 +855,25 @@ extension SourceKitServer {
     languageService.documentColor(req)
   }
 
+  private func supportsSemanticTokens(in uri: DocumentURI) -> Bool {
+    guard let workspace = workspace,
+          let snapshot = workspace.documentManager.latestSnapshot(uri) else {
+      return false
+    }
+    let language = snapshot.document.language
+    return workspace.capabilityRegistry.hasSemanticTokensRegistration(for: language)
+  }
+
   func documentSemanticTokens(
     _ req: Request<DocumentSemanticTokensRequest>,
     workspace: Workspace,
     languageService: ToolchainLanguageServer
   ) {
-    languageService.documentSemanticTokens(req)
+    if supportsSemanticTokens(in: req.params.textDocument.uri) {
+      languageService.documentSemanticTokens(req)
+    } else {
+      req.reply(DocumentSemanticTokensResponse(data: []))
+    }
   }
 
   func documentSemanticTokensDelta(
@@ -868,7 +881,11 @@ extension SourceKitServer {
     workspace: Workspace,
     languageService: ToolchainLanguageServer
   ) {
-    languageService.documentSemanticTokensDelta(req)
+    if supportsSemanticTokens(in: req.params.textDocument.uri) {
+      languageService.documentSemanticTokensDelta(req)
+    } else {
+      req.reply(.tokens(.init(data: [])))
+    }
   }
 
   func documentSemanticTokensRange(
@@ -876,7 +893,11 @@ extension SourceKitServer {
     workspace: Workspace,
     languageService: ToolchainLanguageServer
   ) {
-    languageService.documentSemanticTokensRange(req)
+    if supportsSemanticTokens(in: req.params.textDocument.uri) {
+      languageService.documentSemanticTokensRange(req)
+    } else {
+      req.reply(DocumentSemanticTokensResponse(data: []))
+    }
   }
 
   func colorPresentation(

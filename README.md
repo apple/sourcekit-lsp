@@ -48,7 +48,7 @@ SourceKit-LSP is still in early development, so you may run into rough edges wit
 | Local Refactoring | ✅ | |
 | Formatting | ❌ | |
 | Folding | ✅ | |
-| Syntax Highlighting | ❌ | Not currently part of LSP. |
+| Syntax Highlighting | ✅ | Both syntactic and semantic tokens |
 | Document Symbols | ✅ |  |
 
 

@@ -16,6 +16,7 @@ public struct sourcekitd_keys {
   public let actionname: sourcekitd_uid_t
   public let actionuid: sourcekitd_uid_t
   public let annotated_decl: sourcekitd_uid_t
+  public let annotations: sourcekitd_uid_t
   public let associated_usrs: sourcekitd_uid_t
   public let bodylength: sourcekitd_uid_t
   public let bodyoffset: sourcekitd_uid_t
@@ -61,6 +62,7 @@ public struct sourcekitd_keys {
   public let substructure: sourcekitd_uid_t
   public let syntactic_only: sourcekitd_uid_t
   public let syntaxmap: sourcekitd_uid_t
+  public let enablesyntaxmap: sourcekitd_uid_t
   public let text: sourcekitd_uid_t
   public let typename: sourcekitd_uid_t
   public let usr: sourcekitd_uid_t
@@ -86,6 +88,7 @@ public struct sourcekitd_keys {
     actionname = api.uid_get_from_cstr("key.actionname")!
     actionuid = api.uid_get_from_cstr("key.actionuid")!
     annotated_decl = api.uid_get_from_cstr("key.annotated_decl")!
+    annotations = api.uid_get_from_cstr("key.annotations")!
     associated_usrs = api.uid_get_from_cstr("key.associated_usrs")!
     bodylength = api.uid_get_from_cstr("key.bodylength")!
     bodyoffset = api.uid_get_from_cstr("key.bodyoffset")!
@@ -131,6 +134,7 @@ public struct sourcekitd_keys {
     substructure = api.uid_get_from_cstr("key.substructure")!
     syntactic_only = api.uid_get_from_cstr("key.syntactic_only")!
     syntaxmap = api.uid_get_from_cstr("key.syntaxmap")!
+    enablesyntaxmap = api.uid_get_from_cstr("key.enablesyntaxmap")!
     text = api.uid_get_from_cstr("key.text")!
     typename = api.uid_get_from_cstr("key.typename")!
     usr = api.uid_get_from_cstr("key.usr")!
@@ -272,12 +276,20 @@ public struct sourcekitd_values {
   public let decl_generic_type_param: sourcekitd_uid_t
   public let ref_generic_type_param: sourcekitd_uid_t
   public let ref_module: sourcekitd_uid_t
+  public let syntaxtype_attribute_builtin: sourcekitd_uid_t
   public let syntaxtype_comment: sourcekitd_uid_t
   public let syntaxtype_comment_marker: sourcekitd_uid_t
   public let syntaxtype_comment_url: sourcekitd_uid_t
   public let syntaxtype_doccomment: sourcekitd_uid_t
   public let syntaxtype_doccomment_field: sourcekitd_uid_t
+  public let syntaxtype_keyword: sourcekitd_uid_t
+  public let syntaxtype_number: sourcekitd_uid_t
+  public let syntaxtype_string: sourcekitd_uid_t
+  public let syntaxtype_string_interpolation_anchor: sourcekitd_uid_t
+  public let syntaxtype_type_identifier: sourcekitd_uid_t
+  public let syntaxtype_identifier: sourcekitd_uid_t
   public let expr_object_literal: sourcekitd_uid_t
+  public let expr_call: sourcekitd_uid_t
 
   public let kind_keyword: sourcekitd_uid_t
 
@@ -367,12 +379,20 @@ public struct sourcekitd_values {
     decl_generic_type_param = api.uid_get_from_cstr("source.lang.swift.decl.generic_type_param")!
     ref_generic_type_param = api.uid_get_from_cstr("source.lang.swift.ref.generic_type_param")!
     ref_module = api.uid_get_from_cstr("source.lang.swift.ref.module")!
+    syntaxtype_attribute_builtin = api.uid_get_from_cstr("source.lang.swift.syntaxtype.attribute.builtin")!
     syntaxtype_comment = api.uid_get_from_cstr("source.lang.swift.syntaxtype.comment")!
     syntaxtype_comment_marker = api.uid_get_from_cstr("source.lang.swift.syntaxtype.comment.mark")!
     syntaxtype_comment_url = api.uid_get_from_cstr("source.lang.swift.syntaxtype.comment.url")!
     syntaxtype_doccomment = api.uid_get_from_cstr("source.lang.swift.syntaxtype.doccomment")!
     syntaxtype_doccomment_field = api.uid_get_from_cstr("source.lang.swift.syntaxtype.doccomment.field")!
+    syntaxtype_keyword = api.uid_get_from_cstr("source.lang.swift.syntaxtype.keyword")!
+    syntaxtype_number = api.uid_get_from_cstr("source.lang.swift.syntaxtype.number")!
+    syntaxtype_string = api.uid_get_from_cstr("source.lang.swift.syntaxtype.string")!
+    syntaxtype_string_interpolation_anchor = api.uid_get_from_cstr("source.lang.swift.syntaxtype.string_interpolation_anchor")!
+    syntaxtype_type_identifier = api.uid_get_from_cstr("source.lang.swift.syntaxtype.typeidentifier")!
+    syntaxtype_identifier = api.uid_get_from_cstr("source.lang.swift.syntaxtype.identifier")!
     expr_object_literal = api.uid_get_from_cstr("source.lang.swift.expr.object_literal")!
+    expr_call = api.uid_get_from_cstr("source.lang.swift.expr.call")!
 
     kind_keyword = api.uid_get_from_cstr("source.lang.swift.keyword")!
   }
