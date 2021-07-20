@@ -42,7 +42,7 @@ extension Array where Element == SyntaxHighlightingToken {
 
       append(SyntaxHighlightingToken(
         start: current,
-        length: length,
+        utf16length: length,
         kind: kind,
         modifiers: modifiers
       ))

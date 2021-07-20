@@ -169,21 +169,27 @@ public final class SwiftLanguageServer: ToolchainLanguageServer {
   ) {
     dispatchPrecondition(condition: .onQueue(queue))
 
+    guard let offset: Int = response[keys.offset],
+          let length: Int = response[keys.length],
+          let start: Position = snapshot.positionOf(utf8Offset: offset),
+          let end: Position = snapshot.positionOf(utf8Offset: offset + length) else {
+      log("updateLexicalAndSyntacticTokens failed, no range found", level: .error)
+      return
+    }
+
     let uri = snapshot.document.uri
+    let range = start..<end
+
+    // If the range is empty we don't have to (and shouldn't) update anything.
+    // This is important, since the substructure may be empty, causing us to
+    // unnecessarily remove all syntactic tokens.
+    guard !range.isEmpty else {
+      return
+    }
 
     if let syntaxMap: SKDResponseArray = response[keys.syntaxmap] {
       let tokenParser = SyntaxHighlightingTokenParser(sourcekitd: sourcekitd)
       let tokens = tokenParser.parseTokens(syntaxMap, in: snapshot)
-      let range: Range<Position>?
-
-      if let offset: Int = response[keys.offset],
-         let length: Int = response[keys.length],
-         let start: Position = snapshot.positionOf(utf8Offset: offset),
-         let end: Position = snapshot.positionOf(utf8Offset: offset + length) {
-        range = start..<end
-      } else {
-        range = nil
-      }
 
       do {
         try documentManager.replaceLexicalTokens(uri, in: range, with: tokens)
@@ -523,7 +529,7 @@ extension SwiftLanguageServer {
           // empty range for an edit, causing all syntactic tokens to get removed
           // therefore we only update them if the range is non-empty.
 
-          if !(edit.range?.isEmpty ?? false), let dict = lastResponse, let snapshot = self.documentManager.latestSnapshot(uri) {
+          if let dict = lastResponse, let snapshot = self.documentManager.latestSnapshot(uri) {
             self.updateLexicalAndSyntacticTokens(response: dict, for: snapshot)
           }
         }
@@ -843,7 +849,7 @@ extension SwiftLanguageServer {
         return
       }
 
-      let tokens = snapshot.tokens.mergedAndSorted.filter { $0.sameLineRange.overlaps(range) }
+      let tokens = snapshot.tokens.mergedAndSorted.filter { $0.range.overlaps(range) }
       let encodedTokens = tokens.lspEncoded
 
       req.reply(DocumentSemanticTokensResponse(data: encodedTokens))

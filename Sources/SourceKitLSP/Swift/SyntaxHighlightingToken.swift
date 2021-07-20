@@ -16,56 +16,48 @@ import LSPLogging
 
 /// A ranged token in the document used for syntax highlighting.
 public struct SyntaxHighlightingToken: Hashable {
-  public var start: Position
-  public var length: Int
+  /// The range of the token in the document. Must be on a single line.
+  public var range: Range<Position> {
+    didSet {
+      assert(range.lowerBound.line == range.upperBound.line)
+    }
+  }
+  /// The token type.
   public var kind: Kind
+  /// Additional metadata about the token.
   public var modifiers: Modifiers
 
-  /// The end of a token. Note that this requires the token to be
-  /// on a single line, which is the case for all tokens emitted
-  /// by parseTokens, however.
-  public var sameLineEnd: Position {
-    Position(line: start.line, utf16index: start.utf16index + length)
+  /// The (inclusive) start position of the token.
+  /// Setting it shifts the token and preserves the length.
+  public var start: Position {
+    get { range.lowerBound }
+    set {
+      let length = utf16length
+      range = newValue..<Position(line: newValue.line, utf16index: newValue.utf16index + length)
+    }
   }
-  public var sameLineRange: Range<Position> {
-    start..<sameLineEnd
+  /// The (exclusive) end position of the token.
+  public var end: Position { range.upperBound }
+  /// The length of the token in UTF-16 code units.
+  public var utf16length: Int {
+    get { end.utf16index - start.utf16index }
+    set {
+      assert(newValue >= 0)
+      range = start..<Position(line: start.line, utf16index: start.utf16index + newValue)
+    }
   }
 
-  public init(
-    start: Position,
-    length: Int,
-    kind: Kind,
-    modifiers: Modifiers = []
-  ) {
-    self.start = start
-    self.length = length
+  public init(range: Range<Position>, kind: Kind, modifiers: Modifiers = []) {
+    assert(range.lowerBound.line == range.upperBound.line)
+
+    self.range = range
     self.kind = kind
     self.modifiers = modifiers
   }
 
-  /// Splits a potentially multi-line token to multiple single-line tokens.
-  public func splitToSingleLineTokens(in snapshot: DocumentSnapshot) -> [Self] {
-    guard let startIndex = snapshot.index(of: start) else {
-      fatalError("Token \(self) begins outside of the document")
-    }
-
-    let endIndex = snapshot.text.index(startIndex, offsetBy: length)
-    let text = snapshot.text[startIndex..<endIndex]
-    let lines = text.split(separator: "\n")
-
-    return lines
-      .enumerated()
-      .map { (i, content) in
-        Self(
-          start: Position(
-            line: start.line + i,
-            utf16index: i == 0 ? start.utf16index : 0
-          ),
-          length: content.count,
-          kind: kind,
-          modifiers: modifiers
-        )
-      }
+  public init(start: Position, utf16length: Int, kind: Kind, modifiers: Modifiers = []) {
+    let range = start..<Position(line: start.line, utf16index: start.utf16index + utf16length)
+    self.init(range: range, kind: kind, modifiers: modifiers)
   }
 
   /// The token type. Represented using an int to make the conversion to
@@ -223,7 +215,7 @@ extension Array where Element == SyntaxHighlightingToken {
       rawTokens += [
         UInt32(lineDelta),
         UInt32(charDelta),
-        UInt32(token.length),
+        UInt32(token.utf16length),
         token.kind.rawValue,
         token.modifiers.rawValue
       ]
@@ -236,8 +228,35 @@ extension Array where Element == SyntaxHighlightingToken {
   /// preferring the given array's tokens if duplicate ranges are
   /// found.
   public func mergingTokens(with other: [SyntaxHighlightingToken]) -> [SyntaxHighlightingToken] {
-    let otherRanges = Set(other.map(\.sameLineRange))
-    return filter { !otherRanges.contains($0.sameLineRange) } + other
+    let otherRanges = Set(other.map(\.range))
+    return filter { !otherRanges.contains($0.range) } + other
+  }
+}
+
+extension Range where Bound == Position {
+  /// Splits a potentially multi-line range to multiple single-line ranges.
+  fileprivate func splitToSingleLineRanges(in snapshot: DocumentSnapshot) -> [Self] {
+    guard let startIndex = snapshot.index(of: lowerBound),
+          let endIndex = snapshot.index(of: upperBound) else {
+      fatalError("Range \(self) reaches outside of the document")
+    }
+
+    let text = snapshot.text[startIndex..<endIndex]
+    let lines = text.split(separator: "\n")
+
+    return lines
+      .enumerated()
+      .map { (i, content) in
+        let start = Position(
+          line: lowerBound.line + i,
+          utf16index: i == 0 ? lowerBound.utf16index : 0
+        )
+        let end = Position(
+          line: start.line,
+          utf16index: start.utf16index + content.utf16.count
+        )
+        return start..<end
+      }
   }
 }
 
@@ -271,7 +290,7 @@ struct SyntaxHighlightingTokenParser {
       if useName && [.function, .method, .enumMember].contains(kind) && modifiers.contains(.declaration),
          let name: String = response[keys.name],
          name.contains("("),
-         let funcNameLength: Int = name.split(separator: "(").first?.utf16.count {
+         let funcNameLength: Int = name.split(separator: "(").first?.utf8.count {
         length = funcNameLength
       }
 
@@ -282,14 +301,18 @@ struct SyntaxHighlightingTokenParser {
         length += 2
       }
 
-      let multiLineToken = SyntaxHighlightingToken(
-        start: start,
-        length: length,
-        kind: kind,
-        modifiers: modifiers
-      )
+      if let end: Position = snapshot.positionOf(utf8Offset: offset + length) {
+        let multiLineRange = start..<end
+        let ranges = multiLineRange.splitToSingleLineRanges(in: snapshot)
 
-      tokens += multiLineToken.splitToSingleLineTokens(in: snapshot)
+        tokens += ranges.map {
+          SyntaxHighlightingToken(
+            range: $0,
+            kind: kind,
+            modifiers: modifiers
+          )
+        }
+      }
     }
 
     if let substructure: SKDResponseArray = response[keys.substructure] {

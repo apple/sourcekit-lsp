@@ -158,12 +158,12 @@ final class SemanticTokensTests: XCTestCase {
     let tokens = [
       Token(
         start: Position(line: 2, utf16index: 3),
-        length: 5,
+        utf16length: 5,
         kind: .string
       ),
       Token(
         start: Position(line: 4, utf16index: 2),
-        length: 1,
+        utf16length: 1,
         kind: .interface,
         modifiers: [.deprecated, .definition]
       ),
@@ -205,11 +205,11 @@ final class SemanticTokensTests: XCTestCase {
     let end = Position(line: 2, utf16index: 5)
     let tokens = openAndPerformSemanticTokensRequest(text: text, range: start..<end)
     XCTAssertEqual(tokens, [
-      Token(start: Position(line: 1, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 1, utf16index: 4), length: 4, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 1, utf16index: 11), length: 2, kind: .number),
-      Token(start: Position(line: 2, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 2, utf16index: 4), length: 3, kind: .variable, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 1, utf16index: 4, length: 4, kind: .variable, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 11, length: 2, kind: .number),
+      makeToken(line: 2, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 2, utf16index: 4, length: 3, kind: .variable, modifiers: .declaration),
     ])
   }
 
@@ -222,16 +222,16 @@ final class SemanticTokensTests: XCTestCase {
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
       // let x = 3
-      Token(start: Position(line: 0, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 0, utf16index: 8), length: 1, kind: .number),
+      makeToken(line: 0, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 0, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 8, length: 1, kind: .number),
       // var y = "test"
-      Token(start: Position(line: 1, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 1, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 1, utf16index: 8), length: 6, kind: .string),
+      makeToken(line: 1, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 1, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 8, length: 6, kind: .string),
       // /* abc */ // 123
-      Token(start: Position(line: 2, utf16index: 0), length: 9, kind: .comment),
-      Token(start: Position(line: 2, utf16index: 10), length: 6, kind: .comment),
+      makeToken(line: 2, utf16index: 0, length: 9, kind: .comment),
+      makeToken(line: 2, utf16index: 10, length: 6, kind: .comment),
     ])
   }
 
@@ -243,13 +243,13 @@ final class SemanticTokensTests: XCTestCase {
     """
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
-      Token(start: Position(line: 0, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 0, utf16index: 8), length: 1, kind: .number),
+      makeToken(line: 0, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 0, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 8, length: 1, kind: .number),
       // Multi-line comments are split into single-line tokens
-      Token(start: Position(line: 0, utf16index: 10), length: 2, kind: .comment),
-      Token(start: Position(line: 1, utf16index: 0), length: 10, kind: .comment),
-      Token(start: Position(line: 2, utf16index: 0), length: 2, kind: .comment),
+      makeToken(line: 0, utf16index: 10, length: 2, kind: .comment),
+      makeToken(line: 1, utf16index: 0, length: 10, kind: .comment),
+      makeToken(line: 2, utf16index: 0, length: 2, kind: .comment),
     ])
   }
 
@@ -260,8 +260,8 @@ final class SemanticTokensTests: XCTestCase {
     """
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
-      Token(start: Position(line: 0, utf16index: 0), length: 10, kind: .comment, modifiers: [.documentation]),
-      Token(start: Position(line: 1, utf16index: 2), length: 7, kind: .comment, modifiers: [.documentation]),
+      makeToken(line: 0, utf16index: 0, length: 10, kind: .comment, modifiers: [.documentation]),
+      makeToken(line: 1, utf16index: 2, length: 7, kind: .comment, modifiers: [.documentation]),
     ])
   }
 
@@ -273,13 +273,13 @@ final class SemanticTokensTests: XCTestCase {
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
       // var `if` = 20
-      Token(start: Position(line: 0, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 4), length: 4, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 0, utf16index: 11), length: 2, kind: .number),
+      makeToken(line: 0, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 0, utf16index: 4, length: 4, kind: .variable, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 11, length: 2, kind: .number),
       // let `else` = 3
-      Token(start: Position(line: 1, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 1, utf16index: 4), length: 6, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 1, utf16index: 13), length: 1, kind: .number)
+      makeToken(line: 1, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 1, utf16index: 4, length: 6, kind: .variable, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 13, length: 1, kind: .number)
     ])
   }
 
@@ -299,27 +299,27 @@ final class SemanticTokensTests: XCTestCase {
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
       // struct X {}
-      Token(start: Position(line: 0, utf16index: 0), length: 6, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 7), length: 1, kind: .struct, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 0, length: 6, kind: .keyword),
+      makeToken(line: 0, utf16index: 7, length: 1, kind: .struct, modifiers: .declaration),
       // let x = X()
-      Token(start: Position(line: 2, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 2, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 2, utf16index: 8), length: 1, kind: .struct),
+      makeToken(line: 2, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 2, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 2, utf16index: 8, length: 1, kind: .struct),
       // let y = x + x
-      Token(start: Position(line: 3, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 3, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 3, utf16index: 8), length: 1, kind: .variable),
-      Token(start: Position(line: 3, utf16index: 12), length: 1, kind: .variable),
+      makeToken(line: 3, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 3, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 3, utf16index: 8, length: 1, kind: .variable),
+      makeToken(line: 3, utf16index: 12, length: 1, kind: .variable),
       // func a() {}
-      Token(start: Position(line: 5, utf16index: 0), length: 4, kind: .keyword),
-      Token(start: Position(line: 5, utf16index: 5), length: 1, kind: .function, modifiers: .declaration),
+      makeToken(line: 5, utf16index: 0, length: 4, kind: .keyword),
+      makeToken(line: 5, utf16index: 5, length: 1, kind: .function, modifiers: .declaration),
       // let b = {}
-      Token(start: Position(line: 6, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 6, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 6, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 6, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
       // a()
-      Token(start: Position(line: 8, utf16index: 0), length: 1, kind: .function),
+      makeToken(line: 8, utf16index: 0, length: 1, kind: .function),
       // b()
-      Token(start: Position(line: 9, utf16index: 0), length: 1, kind: .variable),
+      makeToken(line: 9, utf16index: 0, length: 1, kind: .variable),
     ])
   }
 
@@ -335,22 +335,22 @@ final class SemanticTokensTests: XCTestCase {
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
       // protocol X {}
-      Token(start: Position(line: 0, utf16index: 0), length: 8, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 9), length: 1, kind: .interface, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 0, length: 8, kind: .keyword),
+      makeToken(line: 0, utf16index: 9, length: 1, kind: .interface, modifiers: .declaration),
       // class Y: X {}
-      Token(start: Position(line: 1, utf16index: 0), length: 5, kind: .keyword),
-      Token(start: Position(line: 1, utf16index: 6), length: 1, kind: .class, modifiers: .declaration),
-      Token(start: Position(line: 1, utf16index: 9), length: 1, kind: .interface),
+      makeToken(line: 1, utf16index: 0, length: 5, kind: .keyword),
+      makeToken(line: 1, utf16index: 6, length: 1, kind: .class, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 9, length: 1, kind: .interface),
       // let y: Y = X()
-      Token(start: Position(line: 3, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 3, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 3, utf16index: 7), length: 1, kind: .class),
-      Token(start: Position(line: 3, utf16index: 11), length: 1, kind: .interface),
+      makeToken(line: 3, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 3, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 3, utf16index: 7, length: 1, kind: .class),
+      makeToken(line: 3, utf16index: 11, length: 1, kind: .interface),
       // func f<T: X>() {}
-      Token(start: Position(line: 5, utf16index: 0), length: 4, kind: .keyword),
-      Token(start: Position(line: 5, utf16index: 5), length: 1, kind: .function, modifiers: .declaration),
-      Token(start: Position(line: 5, utf16index: 7), length: 1, kind: .typeParameter, modifiers: .declaration),
-      Token(start: Position(line: 5, utf16index: 10), length: 1, kind: .interface),
+      makeToken(line: 5, utf16index: 0, length: 4, kind: .keyword),
+      makeToken(line: 5, utf16index: 5, length: 1, kind: .function, modifiers: .declaration),
+      makeToken(line: 5, utf16index: 7, length: 1, kind: .typeParameter, modifiers: .declaration),
+      makeToken(line: 5, utf16index: 10, length: 1, kind: .interface),
     ])
   }
 
@@ -358,22 +358,22 @@ final class SemanticTokensTests: XCTestCase {
     let text = "func f(x: Int, _ y: String) {}"
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
-      Token(start: Position(line: 0, utf16index: 0), length: 4, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 5), length: 1, kind: .function, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 0, length: 4, kind: .keyword),
+      makeToken(line: 0, utf16index: 5, length: 1, kind: .function, modifiers: .declaration),
       // Parameter labels use .function as a kind, see parseKindAndModifiers for rationale
-      Token(start: Position(line: 0, utf16index: 7), length: 1, kind: .function, modifiers: .declaration),
-      Token(start: Position(line: 0, utf16index: 10), length: 3, kind: .struct),
-      Token(start: Position(line: 0, utf16index: 15), length: 1, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 20), length: 6, kind: .struct),
+      makeToken(line: 0, utf16index: 7, length: 1, kind: .function, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 10, length: 3, kind: .struct),
+      makeToken(line: 0, utf16index: 15, length: 1, kind: .keyword),
+      makeToken(line: 0, utf16index: 20, length: 6, kind: .struct),
     ])
   }
 
   func testSemanticTokensForFunctionSignaturesWithEmoji() {
-    let text = "func 👍abc() {}"
+    let text = "func x👍y() {}"
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
-      Token(start: Position(line: 0, utf16index: 0), length: 4, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 5), length: 5, kind: .function, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 0, length: 4, kind: .keyword),
+      makeToken(line: 0, utf16index: 5, length: 4, kind: .function, modifiers: .declaration),
     ])
   }
 
@@ -390,24 +390,24 @@ final class SemanticTokensTests: XCTestCase {
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
       // class X
-      Token(start: Position(line: 0, utf16index: 0), length: 5, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 6), length: 1, kind: .class, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 0, length: 5, kind: .keyword),
+      makeToken(line: 0, utf16index: 6, length: 1, kind: .class, modifiers: .declaration),
       // deinit {}
-      Token(start: Position(line: 1, utf16index: 2), length: 6, kind: .method, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 2, length: 6, kind: .method, modifiers: .declaration),
       // static func f() {}
-      Token(start: Position(line: 2, utf16index: 2), length: 6, kind: .keyword),
-      Token(start: Position(line: 2, utf16index: 9), length: 4, kind: .keyword),
-      Token(start: Position(line: 2, utf16index: 14), length: 1, kind: .method, modifiers: [.declaration, .static]),
+      makeToken(line: 2, utf16index: 2, length: 6, kind: .keyword),
+      makeToken(line: 2, utf16index: 9, length: 4, kind: .keyword),
+      makeToken(line: 2, utf16index: 14, length: 1, kind: .method, modifiers: [.declaration, .static]),
       // class func g() {}
-      Token(start: Position(line: 3, utf16index: 2), length: 5, kind: .keyword),
-      Token(start: Position(line: 3, utf16index: 8), length: 4, kind: .keyword),
-      Token(start: Position(line: 3, utf16index: 13), length: 1, kind: .method, modifiers: [.declaration, .static]),
+      makeToken(line: 3, utf16index: 2, length: 5, kind: .keyword),
+      makeToken(line: 3, utf16index: 8, length: 4, kind: .keyword),
+      makeToken(line: 3, utf16index: 13, length: 1, kind: .method, modifiers: [.declaration, .static]),
       // X.f()
-      Token(start: Position(line: 5, utf16index: 0), length: 1, kind: .class),
-      Token(start: Position(line: 5, utf16index: 2), length: 1, kind: .method, modifiers: [.static]),
+      makeToken(line: 5, utf16index: 0, length: 1, kind: .class),
+      makeToken(line: 5, utf16index: 2, length: 1, kind: .method, modifiers: [.static]),
       // X.g()
-      Token(start: Position(line: 6, utf16index: 0), length: 1, kind: .class),
-      Token(start: Position(line: 6, utf16index: 2), length: 1, kind: .method, modifiers: [.static]),
+      makeToken(line: 6, utf16index: 0, length: 1, kind: .class),
+      makeToken(line: 6, utf16index: 2, length: 1, kind: .method, modifiers: [.static]),
     ])
   }
 
@@ -424,28 +424,28 @@ final class SemanticTokensTests: XCTestCase {
     let tokens = openAndPerformSemanticTokensRequest(text: text)
     XCTAssertEqual(tokens, [
       // enum Maybe<T>
-      Token(start: Position(line: 0, utf16index: 0), length: 4, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 5), length: 5, kind: .enum, modifiers: .declaration),
-      Token(start: Position(line: 0, utf16index: 11), length: 1, kind: .typeParameter, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 0, length: 4, kind: .keyword),
+      makeToken(line: 0, utf16index: 5, length: 5, kind: .enum, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 11, length: 1, kind: .typeParameter, modifiers: .declaration),
       // case none
-      Token(start: Position(line: 1, utf16index: 2), length: 4, kind: .keyword),
-      Token(start: Position(line: 1, utf16index: 7), length: 4, kind: .enumMember, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 2, length: 4, kind: .keyword),
+      makeToken(line: 1, utf16index: 7, length: 4, kind: .enumMember, modifiers: .declaration),
       // case some
-      Token(start: Position(line: 2, utf16index: 2), length: 4, kind: .keyword),
-      Token(start: Position(line: 2, utf16index: 7), length: 4, kind: .enumMember, modifiers: .declaration),
-      Token(start: Position(line: 2, utf16index: 12), length: 1, kind: .typeParameter),
+      makeToken(line: 2, utf16index: 2, length: 4, kind: .keyword),
+      makeToken(line: 2, utf16index: 7, length: 4, kind: .enumMember, modifiers: .declaration),
+      makeToken(line: 2, utf16index: 12, length: 1, kind: .typeParameter),
       // let x = Maybe<String>.none
-      Token(start: Position(line: 5, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 5, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 5, utf16index: 8), length: 5, kind: .enum),
-      Token(start: Position(line: 5, utf16index: 14), length: 6, kind: .struct),
-      Token(start: Position(line: 5, utf16index: 22), length: 4, kind: .enumMember),
+      makeToken(line: 5, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 5, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 5, utf16index: 8, length: 5, kind: .enum),
+      makeToken(line: 5, utf16index: 14, length: 6, kind: .struct),
+      makeToken(line: 5, utf16index: 22, length: 4, kind: .enumMember),
       // let y: Maybe = .some(42)
-      Token(start: Position(line: 6, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 6, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 6, utf16index: 7), length: 5, kind: .enum),
-      Token(start: Position(line: 6, utf16index: 16), length: 4, kind: .enumMember),
-      Token(start: Position(line: 6, utf16index: 21), length: 2, kind: .number),
+      makeToken(line: 6, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 6, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 6, utf16index: 7, length: 5, kind: .enum),
+      makeToken(line: 6, utf16index: 16, length: 4, kind: .enumMember),
+      makeToken(line: 6, utf16index: 21, length: 2, kind: .number),
     ])
   }
 
@@ -473,11 +473,11 @@ final class SemanticTokensTests: XCTestCase {
 
     let before = performSemanticTokensRequest(text: text)
     let expectedLeading = [
-      Token(start: Position(line: 0, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 4), length: 4, kind: .variable, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 0, utf16index: 4, length: 4, kind: .variable, modifiers: .declaration),
     ]
     XCTAssertEqual(before, expectedLeading + [
-      Token(start: Position(line: 0, utf16index: 11), length: 4, kind: .number),
+      makeToken(line: 0, utf16index: 11, length: 4, kind: .number),
     ])
 
     let start = Position(line: 0, utf16index: 10)
@@ -486,7 +486,7 @@ final class SemanticTokensTests: XCTestCase {
 
     let after = performSemanticTokensRequest(text: text)
     XCTAssertEqual(after, expectedLeading + [
-      Token(start: Position(line: 0, utf16index: 11), length: 3, kind: .number),
+      makeToken(line: 0, utf16index: 11, length: 3, kind: .number),
     ])
   }
 
@@ -498,8 +498,8 @@ final class SemanticTokensTests: XCTestCase {
 
     let before = performSemanticTokensRequest(text: text)
     XCTAssertEqual(before, [
-      Token(start: Position(line: 0, utf16index: 0), length: 10, kind: .function),
-      Token(start: Position(line: 0, utf16index: 11), length: 5, kind: .string),
+      makeToken(line: 0, utf16index: 0, length: 10, kind: .function),
+      makeToken(line: 0, utf16index: 11, length: 5, kind: .string),
     ])
 
     let start = Position(line: 0, utf16index: 10)
@@ -508,8 +508,8 @@ final class SemanticTokensTests: XCTestCase {
 
     let after = performSemanticTokensRequest(text: text)
     XCTAssertEqual(after, [
-      Token(start: Position(line: 0, utf16index: 0), length: 10, kind: .function),
-      Token(start: Position(line: 0, utf16index: 11), length: 6, kind: .string),
+      makeToken(line: 0, utf16index: 0, length: 10, kind: .function),
+      makeToken(line: 0, utf16index: 11, length: 6, kind: .string),
     ])
   }
 
@@ -579,9 +579,9 @@ final class SemanticTokensTests: XCTestCase {
 
     let before = performSemanticTokensRequest(text: text)
     XCTAssertEqual(before, [
-      Token(start: Position(line: 0, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 1, utf16index: 0), length: 5, kind: .string),
+      makeToken(line: 0, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 0, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 0, length: 5, kind: .string),
     ])
 
     let start = Position(line: 0, utf16index: 7)
@@ -590,9 +590,9 @@ final class SemanticTokensTests: XCTestCase {
 
     let after = performSemanticTokensRequest(text: text)
     XCTAssertEqual(after, [
-      Token(start: Position(line: 0, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 0, utf16index: 8), length: 5, kind: .string),
+      makeToken(line: 0, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 0, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 8, length: 5, kind: .string),
     ])
   }
 
@@ -605,12 +605,12 @@ final class SemanticTokensTests: XCTestCase {
 
     let before = performSemanticTokensRequest(text: text)
     XCTAssertEqual(before, [
-      Token(start: Position(line: 0, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 0, utf16index: 8), length: 5, kind: .string),
-      Token(start: Position(line: 1, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 1, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 1, utf16index: 8), length: 1, kind: .variable),
+      makeToken(line: 0, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 0, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 8, length: 5, kind: .string),
+      makeToken(line: 1, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 1, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 8, length: 1, kind: .variable),
     ])
 
     let newName = "renamed"
@@ -627,12 +627,27 @@ final class SemanticTokensTests: XCTestCase {
 
     let after = performSemanticTokensRequest(text: text)
     XCTAssertEqual(after, [
-      Token(start: Position(line: 0, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 0, utf16index: 4), length: 7, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 0, utf16index: 14), length: 5, kind: .string),
-      Token(start: Position(line: 1, utf16index: 0), length: 3, kind: .keyword),
-      Token(start: Position(line: 1, utf16index: 4), length: 1, kind: .variable, modifiers: .declaration),
-      Token(start: Position(line: 1, utf16index: 8), length: 7, kind: .variable),
+      makeToken(line: 0, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 0, utf16index: 4, length: 7, kind: .variable, modifiers: .declaration),
+      makeToken(line: 0, utf16index: 14, length: 5, kind: .string),
+      makeToken(line: 1, utf16index: 0, length: 3, kind: .keyword),
+      makeToken(line: 1, utf16index: 4, length: 1, kind: .variable, modifiers: .declaration),
+      makeToken(line: 1, utf16index: 8, length: 7, kind: .variable),
     ])
+  }
+
+  private func makeToken(
+    line: Int,
+    utf16index: Int,
+    length: Int,
+    kind: Token.Kind,
+    modifiers: Token.Modifiers = []
+  ) -> Token {
+    Token(
+      start: Position(line: line, utf16index: utf16index),
+      utf16length: length,
+      kind: kind,
+      modifiers: modifiers
+    )
   }
 }
