@@ -161,56 +161,67 @@ public final class SwiftLanguageServer: ToolchainLanguageServer {
     }
   }
 
-  /// Update lexical and syntactic tokens for the given `snapshot`.
-  /// Should only be called on `queue`.
+  /// Updates the lexical and syntactic tokens for the given `snapshot`.
+  /// Must be called on `self.queue`.
   private func updateLexicalAndSyntacticTokens(
     response: SKDResponseDictionary,
     for snapshot: DocumentSnapshot
   ) {
     dispatchPrecondition(condition: .onQueue(queue))
 
+    let uri = snapshot.document.uri
+    let docTokens = updatedLexicalAndSyntacticTokens(response: response, for: snapshot)
+
+    do {
+      try documentManager.updateTokens(uri, tokens: docTokens)
+    } catch {
+      log("Updating lexical and syntactic tokens failed: \(error)", level: .warning)
+    }
+  }
+
+  /// Returns the updated lexical and syntactic tokens for the given `snapshot`.
+  private func updatedLexicalAndSyntacticTokens(
+    response: SKDResponseDictionary,
+    for snapshot: DocumentSnapshot
+  ) -> DocumentTokens {
+    var docTokens = snapshot.tokens
+
     guard let offset: Int = response[keys.offset],
           let length: Int = response[keys.length],
           let start: Position = snapshot.positionOf(utf8Offset: offset),
           let end: Position = snapshot.positionOf(utf8Offset: offset + length) else {
       log("updateLexicalAndSyntacticTokens failed, no range found", level: .error)
-      return
+      return docTokens
     }
 
-    let uri = snapshot.document.uri
     let range = start..<end
 
     // If the range is empty we don't have to (and shouldn't) update anything.
     // This is important, since the substructure may be empty, causing us to
     // unnecessarily remove all syntactic tokens.
     guard !range.isEmpty else {
-      return
+      return docTokens
     }
 
     if let syntaxMap: SKDResponseArray = response[keys.syntaxmap] {
       let tokenParser = SyntaxHighlightingTokenParser(sourcekitd: sourcekitd)
       let tokens = tokenParser.parseTokens(syntaxMap, in: snapshot)
 
-      do {
-        try documentManager.replaceLexicalTokens(uri, in: range, with: tokens)
-      } catch {
-        log("updating lexical tokens for \(uri) failed: \(error)", level: .warning)
-      }
+      docTokens.replaceLexical(in: range, with: tokens)
     }
 
     if let substructure: SKDResponseArray = response[keys.substructure] {
       let tokenParser = SyntaxHighlightingTokenParser(sourcekitd: sourcekitd, useName: true)
       let tokens = tokenParser.parseTokens(substructure, in: snapshot)
-      do {
-        try documentManager.replaceSyntacticTokens(uri, tokens: tokens)
-      } catch {
-        log("updating syntactic tokens for \(uri) failed: \(error)", level: .warning)
-      }
+
+      docTokens.syntactic = tokens
     }
+
+    return docTokens
   }
 
-  /// Update semantic tokens for the given `snapshot`.
-  /// Should only be called on `queue`.
+  /// Updates the semantic tokens for the given `snapshot`.
+  /// Must be called on `self.queue`.
   private func updateSemanticTokens(
     response: SKDResponseDictionary,
     for snapshot: DocumentSnapshot
@@ -218,18 +229,30 @@ public final class SwiftLanguageServer: ToolchainLanguageServer {
     dispatchPrecondition(condition: .onQueue(queue))
 
     let uri = snapshot.document.uri
-    guard let skTokens: SKDResponseArray = response[keys.annotations] else {
-      return
-    }
-
-    let tokenParser = SyntaxHighlightingTokenParser(sourcekitd: sourcekitd)
-    let tokens = tokenParser.parseTokens(skTokens, in: snapshot)
+    let docTokens = updatedSemanticTokens(response: response, for: snapshot)
 
     do {
-      try documentManager.replaceSemanticTokens(uri, tokens: tokens)
+      try documentManager.updateTokens(uri, tokens: docTokens)
     } catch {
-      log("updating semantic tokens for \(uri) failed: \(error)", level: .warning)
+      log("Updating semantic tokens failed: \(error)", level: .warning)
     }
+  }
+
+  /// Returns the updated semantic tokens for the given `snapshot`.
+  private func updatedSemanticTokens(
+    response: SKDResponseDictionary,
+    for snapshot: DocumentSnapshot
+  ) -> DocumentTokens {
+    var docTokens = snapshot.tokens
+
+    if let skTokens: SKDResponseArray = response[keys.annotations] {
+      let tokenParser = SyntaxHighlightingTokenParser(sourcekitd: sourcekitd)
+      let tokens = tokenParser.parseTokens(skTokens, in: snapshot)
+
+      docTokens.semantic = tokens
+    }
+
+    return docTokens
   }
 
   /// Inform the client about changes to the syntax highlighting tokens.
@@ -491,50 +514,35 @@ extension SwiftLanguageServer {
 
     self.queue.async {
       let uri = note.textDocument.uri
-      let newVersion = note.textDocument.version ?? -1
       var lastResponse: SKDResponseDictionary? = nil
 
-      // We iterate manually over the `contentChanges` here instead of passing
-      // the notification directly to the convenience method `edit(_:editCallback:)`
-      // since we need to update the tokens in lockstep with the edits in the
-      // document.
+      self.documentManager.edit(note) { (before: DocumentSnapshot, edit: TextDocumentContentChangeEvent) in
+        let req = SKDRequestDictionary(sourcekitd: self.sourcekitd)
+        req[keys.request] = self.requests.editor_replacetext
+        req[keys.name] = note.textDocument.uri.pseudoPath
 
-      do {
-        for edit in note.contentChanges {
-          try self.documentManager.edit(uri, newVersion: newVersion, edits: [edit]) { (before: DocumentSnapshot, edit: TextDocumentContentChangeEvent) in
-            let req = SKDRequestDictionary(sourcekitd: self.sourcekitd)
-            req[keys.request] = self.requests.editor_replacetext
-            req[keys.name] = note.textDocument.uri.pseudoPath
-
-            if let range = edit.range {
-              guard let offset = before.utf8Offset(of: range.lowerBound), let end = before.utf8Offset(of: range.upperBound) else {
-                fatalError("invalid edit \(range)")
-              }
-
-              req[keys.offset] = offset
-              req[keys.length] = end - offset
-
-            } else {
-              // Full text
-              req[keys.offset] = 0
-              req[keys.length] = before.text.utf8.count
-            }
-
-            req[keys.sourcetext] = edit.text
-
-            lastResponse = try? self.sourcekitd.sendSync(req)
+        if let range = edit.range {
+          guard let offset = before.utf8Offset(of: range.lowerBound), let end = before.utf8Offset(of: range.upperBound) else {
+            fatalError("invalid edit \(range)")
           }
 
-          // SourceKit seems to respond with an empty substructure after sending an
-          // empty range for an edit, causing all syntactic tokens to get removed
-          // therefore we only update them if the range is non-empty.
+          req[keys.offset] = offset
+          req[keys.length] = end - offset
 
-          if let dict = lastResponse, let snapshot = self.documentManager.latestSnapshot(uri) {
-            self.updateLexicalAndSyntacticTokens(response: dict, for: snapshot)
-          }
+        } else {
+          // Full text
+          req[keys.offset] = 0
+          req[keys.length] = before.text.utf8.count
         }
-      } catch {
-        log("failed to edit document: \(error)", level: .error)
+
+        req[keys.sourcetext] = edit.text
+        lastResponse = try? self.sourcekitd.sendSync(req)
+      } afterCallback: { (after: DocumentSnapshot) in
+        if let dict = lastResponse {
+          return self.updatedLexicalAndSyntacticTokens(response: dict, for: after)
+        } else {
+          return nil
+        }
       }
 
       if let dict = lastResponse, let snapshot = self.documentManager.latestSnapshot(uri) {

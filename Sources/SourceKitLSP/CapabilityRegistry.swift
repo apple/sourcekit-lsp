@@ -142,7 +142,7 @@ public final class CapabilityRegistry {
     }
   }
 
-  /// Checks whether a registration for semantic tokens for the given languages exists.
+  /// Checks whether a registration for semantic tokens for the given language exists.
   public func hasSemanticTokensRegistration(for language: Language) -> Bool {
     registration(for: [language], in: semanticTokens) != nil
   }

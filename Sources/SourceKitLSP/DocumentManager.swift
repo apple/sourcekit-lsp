@@ -37,6 +37,12 @@ public struct DocumentTokens {
     action(&syntactic)
     action(&semantic)
   }
+
+  // Replace all lexical tokens in `range`.
+  public mutating func replaceLexical(in range: Range<Position>, with newTokens: [SyntaxHighlightingToken]) {
+    lexical.removeAll { $0.range.overlaps(range) }
+    lexical += newTokens
+  }
 }
 
 public struct DocumentSnapshot {
@@ -140,19 +146,27 @@ public final class DocumentManager {
 
   /// Applies the given edits to the document.
   ///
-  /// - parameter editCallback: Optional closure to call for each edit.
+  /// - parameter beforeCallback: Optional closure to call before each edit.
+  /// - parameter afterCallback: Optional closure to call after each edit.
   /// - parameter before: The document contents *before* the edit is applied.
+  /// - parameter after: The document contents *after* the edit is applied.
   /// - returns: The contents of the file after all the edits are applied.
   /// - throws: Error.missingDocument if the document is not open.
   @discardableResult
-  public func edit(_ uri: DocumentURI, newVersion: Int, edits: [TextDocumentContentChangeEvent], editCallback: ((_ before: DocumentSnapshot, TextDocumentContentChangeEvent) -> Void)? = nil) throws -> DocumentSnapshot {
+  public func edit(
+    _ uri: DocumentURI,
+    newVersion: Int,
+    edits: [TextDocumentContentChangeEvent],
+    beforeCallback: ((_ before: DocumentSnapshot, TextDocumentContentChangeEvent) -> Void)? = nil,
+    afterCallback: ((_ after: DocumentSnapshot) -> DocumentTokens?)? = nil
+  ) throws -> DocumentSnapshot {
     return try queue.sync {
       guard let document = documents[uri] else {
         throw Error.missingDocument(uri)
       }
 
       for edit in edits {
-        if let f = editCallback {
+        if let f = beforeCallback {
           f(document.latestSnapshot, edit)
         }
 
@@ -199,6 +213,9 @@ public final class DocumentManager {
           document.latestTokens = DocumentTokens()
         }
 
+        if let f = afterCallback, let tokens = f(document.latestSnapshot) {
+          document.latestTokens = tokens
+        }
       }
 
       document.latestVersion = newVersion
@@ -206,68 +223,18 @@ public final class DocumentManager {
     }
   }
 
-  /// Replaces the semantic tokens for a document.
+  /// Updates the tokens in a document.
   ///
   /// - parameter uri: The URI of the document to be updated
-  /// - parameter tokens: The tokens to be used
+  /// - parameter tokens: The new tokens for the document
   @discardableResult
-  public func replaceSemanticTokens(
-    _ uri: DocumentURI,
-    tokens: [SyntaxHighlightingToken]
-  ) throws -> DocumentSnapshot {
+  public func updateTokens(_ uri: DocumentURI, tokens: DocumentTokens) throws -> DocumentSnapshot {
     return try queue.sync {
       guard let document = documents[uri] else {
         throw Error.missingDocument(uri)
       }
 
-      document.latestTokens.semantic = tokens
-      return document.latestSnapshot
-    }
-  }
-
-  /// Replaces the syntactic tokens for a document.
-  ///
-  /// - parameter uri: The URI of the document to be updated
-  /// - parameter tokens: The tokens to be used
-  @discardableResult
-  public func replaceSyntacticTokens(
-    _ uri: DocumentURI,
-    tokens: [SyntaxHighlightingToken]
-  ) throws -> DocumentSnapshot {
-    return try queue.sync {
-      guard let document = documents[uri] else {
-        throw Error.missingDocument(uri)
-      }
-
-      document.latestTokens.syntactic = tokens
-      return document.latestSnapshot
-    }
-  }
-
-  /// Replaces the given lexical tokens in a document
-  /// within the given range.
-  ///
-  /// - parameter uri: The URI of the document to be updated
-  /// - parameter range: The range to replace tokens in (nil means the entire document)
-  /// - parameter newTokens: The tokens to be added
-  @discardableResult
-  public func replaceLexicalTokens(
-    _ uri: DocumentURI,
-    in range: Range<Position>? = nil,
-    with newTokens: [SyntaxHighlightingToken]
-  ) throws -> DocumentSnapshot {
-    return try queue.sync {
-      guard let document = documents[uri] else {
-        throw Error.missingDocument(uri)
-      }
-
-      // Remove all tokens that overlap with `range`
-      // (or the entire document if `range` is `nil`)
-      document.latestTokens.lexical.removeAll { token in
-        range.map { token.range.overlaps($0) } ?? true
-      }
-
-      document.latestTokens.lexical += newTokens
+      document.latestTokens = tokens
 
       return document.latestSnapshot
     }
@@ -303,11 +270,21 @@ extension DocumentManager {
     }
   }
 
-  /// Convenience wrapper for `edit(_:newVersion:edits:editCallback:)` that logs on failure.
+  /// Convenience wrapper for `edit(_:newVersion:edits:beforeCallback:)` that logs on failure.
   @discardableResult
-  func edit(_ note: DidChangeTextDocumentNotification, editCallback: ((_ before: DocumentSnapshot, TextDocumentContentChangeEvent) -> Void)? = nil) -> DocumentSnapshot? {
+  func edit(
+    _ note: DidChangeTextDocumentNotification,
+    beforeCallback: ((_ before: DocumentSnapshot, TextDocumentContentChangeEvent) -> Void)? = nil,
+    afterCallback: ((_ after: DocumentSnapshot) -> DocumentTokens?)? = nil
+  ) -> DocumentSnapshot? {
     return orLog("failed to edit document", level: .error) {
-      try edit(note.textDocument.uri, newVersion: note.textDocument.version ?? -1, edits: note.contentChanges, editCallback: editCallback)
+      try edit(
+        note.textDocument.uri,
+        newVersion: note.textDocument.version ?? -1,
+        edits: note.contentChanges,
+        beforeCallback: beforeCallback,
+        afterCallback: afterCallback
+      )
     }
   }
 }
