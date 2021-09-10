@@ -25,7 +25,7 @@ import SKCore
 import SKSupport
 import Workspace
 import Dispatch
-import struct Foundation.URL
+import Foundation
 
 /// Swift Package Manager build system and workspace support.
 ///
@@ -84,6 +84,7 @@ public final class SwiftPMWorkspace {
 
     let destination = try Destination.hostDestination(destinationToolchainBinDir)
     let toolchain = try UserToolchain(destination: destination)
+    let manifestResources = manifestResources(for: toolchain)
 
     let buildPath: AbsolutePath = buildSetup.path ?? packageRoot.appending(component: ".build")
 
@@ -93,7 +94,7 @@ public final class SwiftPMWorkspace {
         dataPath: buildPath,
         editablesPath: packageRoot.appending(component: "Packages"),
         pinsFile: packageRoot.appending(component: "Package.resolved"),
-        manifestLoader: ManifestLoader(manifestResources: toolchain.manifestResources, cacheDir: buildPath),
+        manifestLoader: ManifestLoader(manifestResources: manifestResources, cacheDir: buildPath),
         config: workspaceConfiguration,
         fileSystem: fileSystem,
         skipUpdate: true)
@@ -122,7 +123,7 @@ public final class SwiftPMWorkspace {
   /// Creates a build system using the Swift Package Manager, if this workspace is a package.
   ///
   /// - Returns: nil if `workspacePath` is not part of a package or there is an error.
-  public convenience init?(url: URL,
+  public convenience init?(url: Foundation.URL,
                            toolchainRegistry: ToolchainRegistry,
                            buildSetup: BuildSetup)
   {
@@ -453,4 +454,38 @@ extension TSCBasic.Diagnostic.Behavior {
     default: return .info
     }
   }
+}
+
+private func manifestResources(for toolchain: UserToolchain) -> ManifestResourceProvider {
+  #if USE_LOCAL_PACKAGE_DESCRIPTION_MODULE
+  var buildURL = Bundle(for: SwiftPMWorkspace.self).bundleURL
+  if buildURL.pathExtension == "xctest" {
+    // If we are statically linked into a test bundle, look in the parent.
+    buildURL.deleteLastPathComponent()
+  }
+  // Look for a local copy of PackageDescription -- either as a bare module, or
+  // a framework when building with Xcode. If we find a local PackageDescription
+  // module, override the manifest resources `binDir` so that it will be used
+  // instead of the toolchain's own manifest resources.
+  let fileManager = FileManager.default
+  let bareModule = buildURL
+    .appendingPathComponent("PackageDescription.swiftmodule")
+  let frameworkModule = buildURL
+    .appendingPathComponent("PackageFrameworks")
+    .appendingPathComponent("PackageDescription.framework")
+  if fileManager.fileExists(atPath: bareModule.path) || fileManager.fileExists(atPath: frameworkModule.path) {
+    let manifestResources = toolchain.manifestResources
+    return UserManifestResources(
+      swiftCompiler: manifestResources.swiftCompiler,
+      swiftCompilerFlags: manifestResources.swiftCompilerFlags,
+      libDir: manifestResources.libDir,
+      sdkRoot: manifestResources.sdkRoot,
+      xctestLocation: manifestResources.xctestLocation,
+      binDir: AbsolutePath(buildURL.path))
+  } else {
+    log("requested USE_LOCAL_PACKAGE_DESCRIPTION_MODULE but did not find PackageDescription in \(buildURL); falling back to toolchain resources", level: .error)
+  }
+  #endif
+
+  return toolchain.manifestResources
 }
