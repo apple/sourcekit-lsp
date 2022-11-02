@@ -345,7 +345,7 @@ extension SwiftLanguageServer {
         save: .value(TextDocumentSyncOptions.SaveOptions(includeText: false))),
       hoverProvider: true,
       completionProvider: CompletionOptions(
-        resolveProvider: false,
+        resolveProvider: true,
         triggerCharacters: [".", "("]),
       definitionProvider: nil,
       implementationProvider: .bool(true),
@@ -578,6 +578,12 @@ extension SwiftLanguageServer {
   public func completion(_ req: Request<CompletionRequest>) {
     queue.async {
       self._completion(req)
+    }
+  }
+  
+  public func completionResolve(_ req: Request<CompletionItem>) {
+    queue.async {
+      self._completionResolve(req)
     }
   }
 

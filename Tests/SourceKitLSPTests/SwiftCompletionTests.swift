@@ -118,6 +118,13 @@ final class SwiftCompletionTests: XCTestCase {
       XCTAssertEqual(abc.textEdit, TextEdit(range: Position(line: 5, utf16index: 9)..<Position(line: 5, utf16index: 9), newText: "abc"))
       XCTAssertEqual(abc.insertText, "abc")
       XCTAssertEqual(abc.insertTextFormat, .plain)
+      XCTAssertEqual(abc.data, .dictionary(["textDocURI": .string(url.absoluteString), "usr": .string("s:1a1SV3abcSivp")]))
+
+      // FIXME: SourceKit is "Unable to resolve type from" `s:1a1SV3abcSivp`.
+      
+      // `completionItem/resolve` should return full documentation.
+      //let completionResolveResponse = try! sk.sendSync(abc)
+      //XCTAssertEqual(completionResolveResponse.documentation, .markupContent(MarkupContent(kind: .markdown, value: "Documentation for `abc`.")))
     }
 
     for col in 10...12 {

@@ -79,6 +79,7 @@ public protocol ToolchainLanguageServer: AnyObject {
   // MARK: - Text Document
 
   func completion(_ req: Request<CompletionRequest>)
+  func completionResolve(_ req: Request<CompletionItem>)
   func hover(_ req: Request<HoverRequest>)
   func symbolInfo(_ request: Request<SymbolInfoRequest>)
 

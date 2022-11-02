@@ -180,7 +180,8 @@ final class SKTests: XCTestCase {
         textEdit: TextEdit(range: Position(line: 1, utf16index: 14)..<Position(line: 1, utf16index: 14), newText: "method(a: )"),
         insertText: "method(a: )",
         insertTextFormat: .plain,
-        deprecated: false),
+        deprecated: false,
+        data: .dictionary(["textDocURI": .string(loc.url.absoluteString), "usr": .string("s:4main1AV6method1aySi_tF")])),
       CompletionItem(
         label: "self",
         kind: .keyword,
@@ -190,7 +191,8 @@ final class SKTests: XCTestCase {
         textEdit: TextEdit(range: Position(line: 1, utf16index: 14)..<Position(line: 1, utf16index: 14), newText: "self"),
         insertText: "self",
         insertTextFormat: .plain,
-        deprecated: false),
+        deprecated: false,
+        data: .dictionary(["textDocURI": .string(loc.url.absoluteString)])),
     ])
   }
 

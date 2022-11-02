@@ -39,12 +39,14 @@ final class SwiftPMIntegrationTests: XCTestCase {
         label: "foo()",
         kind: .method,
         detail: "Void",
+        documentation: .markupContent(MarkupContent(kind: .markdown, value: "Documentation for foo.")),
         sortText: nil,
         filterText: "foo()",
         textEdit: TextEdit(range: Position(line: 2, utf16index: 24)..<Position(line: 2, utf16index: 24), newText: "foo()"),
         insertText: "foo()",
         insertTextFormat: .plain,
-        deprecated: false),
+        deprecated: false,
+        data: .dictionary(["textDocURI": .string(call.url.absoluteString), "usr": .string("s:3lib3LibV3fooyyF")])),
       CompletionItem(
         label: "self",
         kind: .keyword,
@@ -54,8 +56,15 @@ final class SwiftPMIntegrationTests: XCTestCase {
         textEdit: TextEdit(range: Position(line: 2, utf16index: 24)..<Position(line: 2, utf16index: 24), newText: "self"),
         insertText: "self",
         insertTextFormat: .plain,
-        deprecated: false),
+        deprecated: false,
+        data: .dictionary(["textDocURI": .string(call.url.absoluteString)])),
     ])
+
+    // FIXME: SourceKit is "Unable to resolve type from" `s:3lib3LibV3fooyyF`.
+    
+    // `completionItem/resolve` should return full documentation.
+    //let completionItemResolveResponse = try ws.sk.sendSync(completions.items[0])
+    //XCTAssertEqual(completionItemResolveResponse.documentation, .markupContent(MarkupContent(kind: .markdown, value: "Documentation for `foo`.")))
   }
 
   func testAddFile() throws {

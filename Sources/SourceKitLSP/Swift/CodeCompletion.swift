@@ -169,10 +169,14 @@ extension SwiftLanguageServer {
       // Map SourceKit's not_recommended field to LSP's deprecated
       let notRecommended = (value[self.keys.not_recommended] as Int?).map({ $0 != 0 })
 
-      let kind: sourcekitd_uid_t? = value[self.keys.kind]
+      let kind = (value[self.keys.kind] as sourcekitd_uid_t?)?.asCompletionItemKind(self.values) ?? .value
+      var data: [String: LSPAny] = ["textDocURI": .string(snapshot.document.uri.stringValue)]
+
+      if let usr: String = value[self.keys.associated_usrs] { data["usr"] = .string(usr) }
+      
       result.items.append(CompletionItem(
         label: name,
-        kind: kind?.asCompletionItemKind(self.values) ?? .value,
+        kind: kind,
         detail: typeName,
         documentation: docBrief != nil ? .markupContent(MarkupContent(kind: .markdown, value: docBrief!)) : nil,
         sortText: nil,
@@ -180,7 +184,8 @@ extension SwiftLanguageServer {
         textEdit: textEdit,
         insertText: text,
         insertTextFormat: isInsertTextSnippet ? .snippet : .plain,
-        deprecated: notRecommended ?? false
+        deprecated: notRecommended ?? false,
+        data: .dictionary(data)
       ))
 
       return true
@@ -262,5 +267,59 @@ extension SwiftLanguageServer {
     }
 
     return TextEdit(range: textEditRangeStart..<requestPosition, newText: newText)
+  }
+  
+    /// Must be called on `queue`.
+  func _completionResolve(_ req: Request<CompletionItem>) {
+    dispatchPrecondition(condition: .onQueue(queue))
+    
+    if 
+      let data = req.params.data,
+      case let .dictionary(dict) = data,
+      case let .string(usr) = dict["usr"],
+      case let .string(textDocURI) = dict["textDocURI"]
+    {
+      let uri = DocumentURI(string: textDocURI)
+      let skreq = SKDRequestDictionary(sourcekitd: sourcekitd)
+      
+      skreq[keys.request] = requests.cursorinfo
+      skreq[keys.usr] = usr
+      skreq[keys.sourcefile] = uri.pseudoPath
+
+      // FIXME: SourceKit should probably cache this for us.
+      if let compileCommand = commandsByFile[uri] {
+        skreq[keys.compilerargs] = compileCommand.compilerArgs
+      }
+      
+      let handle = sourcekitd.send(skreq, queue) { [weak self] result in
+        guard let dict = result.success else { 
+          req.reply(.failure(ResponseError(result.failure!)))
+          return
+        }
+        
+        if let documentationXML: String = dict[self?.keys.doc_full_as_xml] {
+          
+          do {
+            let documentationMarkdown = try xmlDocumentationToMarkdown(documentationXML)
+            var completionItem = req.params
+            
+            completionItem.documentation = .markupContent(MarkupContent(kind: .markdown, value: documentationMarkdown))
+            req.reply(completionItem)
+          } catch {
+            log("Completion Resolve: Unable to convert XML documentation to Markdown", level: .debug)
+            req.reply(req.params)
+          }
+          
+        } else {
+          log("Completion Resolve: No doc_full_as_xml in SourceKit response", level: .debug)
+          req.reply(req.params)
+        }
+      }
+      
+      // FIXME: cancellation
+       _ = handle
+    } else {
+      req.reply(req.params)
+    }
   }
 }

@@ -20,6 +20,7 @@ public let builtinRequests: [_RequestType.Type] = [
   ShutdownRequest.self,
   WorkspaceFoldersRequest.self,
   CompletionRequest.self,
+  CompletionItem.self,
   HoverRequest.self,
   WorkspaceSemanticTokensRefreshRequest.self,
   WorkspaceSymbolsRequest.self,
