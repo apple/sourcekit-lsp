@@ -85,14 +85,14 @@ public actor BuildServerBuildSystem: MessageHandler {
     let configPath = projectRoot.appending(component: "buildServer.json")
     let config = try loadBuildServerConfig(path: configPath, fileSystem: fileSystem)
 #if os(Windows)
+    let pathEnvironmentVar = "Path"
+#else
+    let pathEnvironmentVar = "PATH"
+#endif
     self.searchPaths =
         getEnvSearchPaths(pathString: ProcessInfo.processInfo.environment["Path"],
                           currentWorkingDirectory: fileSystem.currentWorkingDirectory)
-#else
-    self.searchPaths =
-        getEnvSearchPaths(pathString: ProcessInfo.processInfo.environment["PATH"],
-                          currentWorkingDirectory: fileSystem.currentWorkingDirectory)
-#endif
+
     self.buildFolder = buildFolder
     self.projectRoot = projectRoot
     self.requestQueue = DispatchQueue(label: "build_server_request_queue")
