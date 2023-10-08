@@ -110,23 +110,25 @@ final class SwiftInterfaceTests: XCTestCase {
     _ testLoc: TestLocation, 
     ws: SKSwiftPMTestWorkspace, 
     swiftInterfaceFile: String, 
-    linePrefix: String
+    linePrefix: String,
+    file: StaticString = #filePath,
+    line: UInt = #line
   ) throws {
     try ws.openDocument(testLoc.url, language: .swift)
     let definition = try ws.sk.sendSync(DefinitionRequest(
       textDocument: testLoc.docIdentifier,
       position: testLoc.position))
     guard case .locations(let jump) = definition else {
-      XCTFail("Response is not locations")
+      XCTFail("Response is not locations", file: file, line: line)
       return
     }
-    let location = try XCTUnwrap(jump.first)
-    XCTAssertTrue(location.uri.pseudoPath.hasSuffix(swiftInterfaceFile), "Path was: '\(location.uri.pseudoPath)'")
+    let location = try XCTUnwrap(jump.first, "No locations", file: file, line: line)
+    XCTAssertTrue(location.uri.pseudoPath.hasSuffix(swiftInterfaceFile), "Expected '\(swiftInterfaceFile)' but returned path was '\(location.uri.pseudoPath)'", file: file, line: line)
     // load contents of swiftinterface
-    let contents = try XCTUnwrap(location.uri.fileURL.flatMap({ try String(contentsOf: $0, encoding: .utf8) }))
+    let contents = try XCTUnwrap(location.uri.fileURL.flatMap({ try String(contentsOf: $0, encoding: .utf8) }), "Missing path", file: file, line: line)
     let lineTable = LineTable(contents)
-    let line = lineTable[location.range.lowerBound.line]
-    XCTAssert(line.hasPrefix(linePrefix), "Full line was: '\(line)'")
+    let lineText = lineTable[location.range.lowerBound.line]
+    XCTAssert(lineText.hasPrefix(linePrefix), "Expected '\(linePrefix)' but first line was '\(lineText)'", file: file, line: line)
     ws.closeDocument(testLoc.url)
   }
 
