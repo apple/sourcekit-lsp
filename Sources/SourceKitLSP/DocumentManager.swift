@@ -200,17 +200,17 @@ extension DocumentManager {
 
   /// Convenience wrapper for `open(_:language:version:text:)` that logs on failure.
   @discardableResult
-  func open(_ note: DidOpenTextDocumentNotification) -> DocumentSnapshot? {
-    let doc = note.textDocument
+  func open(_ notification: DidOpenTextDocumentNotification) -> DocumentSnapshot? {
+    let doc = notification.textDocument
     return orLog("failed to open document", level: .error) {
       try open(doc.uri, language: doc.language, version: doc.version, text: doc.text)
     }
   }
 
   /// Convenience wrapper for `close(_:)` that logs on failure.
-  func close(_ note: DidCloseTextDocumentNotification) {
+  func close(_ notification: DidCloseTextDocumentNotification) {
     orLog("failed to close document", level: .error) {
-      try close(note.textDocument.uri)
+      try close(notification.textDocument.uri)
     }
   }
 
@@ -218,14 +218,14 @@ extension DocumentManager {
   /// that logs on failure.
   @discardableResult
   func edit(
-    _ note: DidChangeTextDocumentNotification,
+    _ notification: DidChangeTextDocumentNotification,
     willEditDocument: ((_ before: LineTable, TextDocumentContentChangeEvent) -> Void)? = nil
   ) -> (preEditSnapshot: DocumentSnapshot, postEditSnapshot: DocumentSnapshot)? {
     return orLog("failed to edit document", level: .error) {
       return try edit(
-        note.textDocument.uri,
-        newVersion: note.textDocument.version,
-        edits: note.contentChanges,
+        notification.textDocument.uri,
+        newVersion: notification.textDocument.version,
+        edits: notification.contentChanges,
         willEditDocument: willEditDocument
       )
     }

@@ -64,12 +64,12 @@ class ConnectionTests: XCTestCase {
     waitForExpectations(timeout: defaultTimeout)
   }
 
-  func testEchoNote() {
+  func testEchoNotification() {
     let client = connection.client
-    let expectation = self.expectation(description: "note received")
+    let expectation = self.expectation(description: "notification received")
 
-    client.handleNextNotification { (note: Notification<EchoNotification>) in
-      XCTAssertEqual(note.params.string, "hello!")
+    client.handleNextNotification { (notification: Notification<EchoNotification>) in
+      XCTAssertEqual(notification.params.string, "hello!")
       expectation.fulfill()
     }
 

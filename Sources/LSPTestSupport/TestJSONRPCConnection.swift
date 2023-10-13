@@ -95,11 +95,11 @@ public final class TestClient: MessageHandler {
   public var allowUnexpectedNotification: Bool = true
 
   public func appendOneShotNotificationHandler<N>(_ handler: @escaping (Notification<N>) -> Void) {
-    oneShotNotificationHandlers.append({ anyNote in
-      guard let note = anyNote as? Notification<N> else {
-        fatalError("received notification of the wrong type \(anyNote); expected \(N.self)")
+    oneShotNotificationHandlers.append({ anyNotification in
+      guard let notification = anyNotification as? Notification<N> else {
+        fatalError("received notification of the wrong type \(anyNotification); expected \(N.self)")
       }
-      handler(note)
+      handler(notification)
     })
   }
 
@@ -171,15 +171,15 @@ extension TestClient: Connection {
 
   /// Send a notification and expect a notification in reply synchronously.
   /// For testing notifications that behave like requests  - e.g. didChange & publishDiagnostics.
-  public func sendNoteSync<NReply>(
+  public func sendNotificationSync<NReply>(
     _ notification: some NotificationType,
     _ handler: @escaping (Notification<NReply>) -> Void
   ) {
 
-    let expectation = XCTestExpectation(description: "sendNoteSync - note received")
+    let expectation = XCTestExpectation(description: "sendNotificationSync - notification received")
 
-    handleNextNotification { (note: Notification<NReply>) in
-      handler(note)
+    handleNextNotification { (notification: Notification<NReply>) in
+      handler(notification)
       expectation.fulfill()
     }
 
@@ -194,21 +194,21 @@ extension TestClient: Connection {
 
   /// Send a notification and expect two notifications in reply synchronously.
   /// For testing notifications that behave like requests  - e.g. didChange & publishDiagnostics.
-  public func sendNoteSync<NSend, NReply1, NReply2>(
+  public func sendNotificationSync<NSend, NReply1, NReply2>(
     _ notification: NSend,
     _ handler1: @escaping (Notification<NReply1>) -> Void,
     _ handler2: @escaping (Notification<NReply2>) -> Void
   ) where NSend: NotificationType {
 
-    let expectation = XCTestExpectation(description: "sendNoteSync - note received")
+    let expectation = XCTestExpectation(description: "sendNotificationSync - notification received")
     expectation.expectedFulfillmentCount = 2
 
-    handleNextNotification { (note: Notification<NReply1>) in
-      handler1(note)
+    handleNextNotification { (notification: Notification<NReply1>) in
+      handler1(notification)
       expectation.fulfill()
     }
-    appendOneShotNotificationHandler { (note: Notification<NReply2>) in
-      handler2(note)
+    appendOneShotNotificationHandler { (notification: Notification<NReply2>) in
+      handler2(notification)
       expectation.fulfill()
     }
 
@@ -230,9 +230,9 @@ public final class TestServer: MessageHandler {
   }
 
   public func handle<N: NotificationType>(_ params: N, from clientID: ObjectIdentifier) {
-    let note = Notification(params, clientID: clientID)
+    let notification = Notification(params, clientID: clientID)
     if params is EchoNotification {
-      self.client.send(note.params)
+      self.client.send(notification.params)
     } else {
       fatalError("Unhandled notification")
     }
@@ -312,7 +312,7 @@ public struct EchoError: RequestType {
 }
 
 public struct EchoNotification: NotificationType {
-  public static var method: String = "test_server/echo_note"
+  public static var method: String = "test_server/echo_notification"
 
   public var string: String
 

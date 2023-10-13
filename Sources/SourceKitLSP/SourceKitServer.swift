@@ -1033,12 +1033,12 @@ extension SourceKitServer {
     await openDocument(notification, workspace: workspace)
   }
 
-  private func openDocument(_ note: DidOpenTextDocumentNotification, workspace: Workspace) async {
+  private func openDocument(_ notification: DidOpenTextDocumentNotification, workspace: Workspace) async {
     // Immediately open the document even if the build system isn't ready. This is important since
     // we check that the document is open when we receive messages from the build system.
-    documentManager.open(note)
+    documentManager.open(notification)
 
-    let textDocument = note.textDocument
+    let textDocument = notification.textDocument
     let uri = textDocument.uri
     let language = textDocument.language
 
@@ -1050,7 +1050,7 @@ extension SourceKitServer {
     await workspace.buildSystemManager.registerForChangeNotifications(for: uri, language: language)
 
     // If the document is ready, we can immediately send the notification.
-    await service.openDocument(note)
+    await service.openDocument(notification)
   }
 
   func closeDocument(_ notification: DidCloseTextDocumentNotification) async {
@@ -1062,16 +1062,16 @@ extension SourceKitServer {
     await self.closeDocument(notification, workspace: workspace)
   }
 
-  func closeDocument(_ note: DidCloseTextDocumentNotification, workspace: Workspace) async {
+  func closeDocument(_ notification: DidCloseTextDocumentNotification, workspace: Workspace) async {
     // Immediately close the document. We need to be sure to clear our pending work queue in case
     // the build system still isn't ready.
-    documentManager.close(note)
+    documentManager.close(notification)
 
-    let uri = note.textDocument.uri
+    let uri = notification.textDocument.uri
 
     await workspace.buildSystemManager.unregisterForChangeNotifications(for: uri)
 
-    await workspace.documentService[uri]?.closeDocument(note)
+    await workspace.documentService[uri]?.closeDocument(notification)
   }
 
   func changeDocument(_ notification: DidChangeTextDocumentNotification) async {
@@ -1098,10 +1098,10 @@ extension SourceKitServer {
   }
 
   func didSaveDocument(
-    _ note: DidSaveTextDocumentNotification,
+    _ notification: DidSaveTextDocumentNotification,
     languageService: ToolchainLanguageServer
   ) async {
-    await languageService.didSaveDocument(note)
+    await languageService.didSaveDocument(notification)
   }
 
   func didChangeWorkspaceFolders(_ notification: DidChangeWorkspaceFoldersNotification) async {

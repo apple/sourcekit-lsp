@@ -301,19 +301,19 @@ final class CodeActionTests: XCTestCase {
     let syntacticDiagnosticsReceived = self.expectation(description: "Syntactic diagnotistics received")
     let semanticDiagnosticsReceived = self.expectation(description: "Semantic diagnotistics received")
 
-    ws.sk.appendOneShotNotificationHandler { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.appendOneShotNotificationHandler { (notification: Notification<PublishDiagnosticsNotification>) in
       // syntactic diagnostics
-      XCTAssertEqual(note.params.uri, def.docUri)
-      XCTAssertEqual(note.params.diagnostics, [])
+      XCTAssertEqual(notification.params.uri, def.docUri)
+      XCTAssertEqual(notification.params.diagnostics, [])
       syntacticDiagnosticsReceived.fulfill()
     }
 
     var diags: [Diagnostic]! = nil
-    ws.sk.appendOneShotNotificationHandler { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.appendOneShotNotificationHandler { (notification: Notification<PublishDiagnosticsNotification>) in
       // semantic diagnostics
-      XCTAssertEqual(note.params.uri, def.docUri)
-      XCTAssertEqual(note.params.diagnostics.count, 1)
-      diags = note.params.diagnostics
+      XCTAssertEqual(notification.params.uri, def.docUri)
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
+      diags = notification.params.diagnostics
       semanticDiagnosticsReceived.fulfill()
     }
 

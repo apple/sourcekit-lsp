@@ -123,8 +123,8 @@ final class WorkspaceTests: XCTestCase {
 
     let expectation = self.expectation(description: "diagnostics")
 
-    ws.sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
-      XCTAssertEqual(note.params.diagnostics.count, 0)
+    ws.sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
+      XCTAssertEqual(notification.params.diagnostics.count, 0)
       expectation.fulfill()
     }
 

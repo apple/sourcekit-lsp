@@ -233,8 +233,8 @@ final class LocalClangTests: XCTestCase {
 
     let expectation = XCTestExpectation(description: "diagnostics")
 
-    ws.sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
-      let diagnostics = note.params.diagnostics
+    ws.sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
+      let diagnostics = notification.params.diagnostics
       // It seems we either get no diagnostics or a `-Wswitch` warning. Either is fine
       // as long as our code action works properly.
       XCTAssert(
@@ -291,15 +291,15 @@ final class LocalClangTests: XCTestCase {
 
     let expectation = XCTestExpectation(description: "diagnostics")
 
-    ws.sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
       // Don't use exact equality because of differences in recent clang.
-      XCTAssertEqual(note.params.diagnostics.count, 1)
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
       XCTAssertEqual(
-        note.params.diagnostics.first?.range,
+        notification.params.diagnostics.first?.range,
         Position(loc)..<Position(ws.testLoc("unused_b:end"))
       )
-      XCTAssertEqual(note.params.diagnostics.first?.severity, .warning)
-      XCTAssertEqual(note.params.diagnostics.first?.message, "Unused variable 'b'")
+      XCTAssertEqual(notification.params.diagnostics.first?.severity, .warning)
+      XCTAssertEqual(notification.params.diagnostics.first?.message, "Unused variable 'b'")
       expectation.fulfill()
     }
 
@@ -316,8 +316,8 @@ final class LocalClangTests: XCTestCase {
 
     let expectation = self.expectation(description: "diagnostics")
 
-    ws.sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
-      XCTAssertEqual(note.params.diagnostics.count, 0)
+    ws.sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
+      XCTAssertEqual(notification.params.diagnostics.count, 0)
       expectation.fulfill()
     }
 
@@ -335,9 +335,9 @@ final class LocalClangTests: XCTestCase {
     let mainLoc = ws.testLoc("Object:include:main")
 
     let diagnostics = self.expectation(description: "diagnostics")
-    ws.sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
       diagnostics.fulfill()
-      XCTAssertEqual(note.params.diagnostics.count, 0)
+      XCTAssertEqual(notification.params.diagnostics.count, 0)
     }
 
     try ws.openDocument(mainLoc.url, language: .c)
@@ -365,8 +365,8 @@ final class LocalClangTests: XCTestCase {
 
     // Initially the workspace should build fine.
     let documentOpened = self.expectation(description: "documentOpened")
-    ws.sk.handleNextNotification({ (note: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) in
-      XCTAssert(note.params.diagnostics.isEmpty)
+    ws.sk.handleNextNotification({ (notification: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) in
+      XCTAssert(notification.params.diagnostics.isEmpty)
       documentOpened.fulfill()
     })
 
@@ -385,8 +385,8 @@ final class LocalClangTests: XCTestCase {
 
     // Now we should get a diagnostic in main.c file because `Object` is no longer defined.
     let updatedNotificationsReceived = self.expectation(description: "updatedNotificationsReceived")
-    ws.sk.handleNextNotification({ (note: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) in
-      XCTAssertFalse(note.params.diagnostics.isEmpty)
+    ws.sk.handleNextNotification({ (notification: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) in
+      XCTAssertFalse(notification.params.diagnostics.isEmpty)
       updatedNotificationsReceived.fulfill()
     })
 

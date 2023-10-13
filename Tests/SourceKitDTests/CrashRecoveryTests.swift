@@ -55,12 +55,12 @@ final class CrashRecoveryTests: XCTestCase {
 
     let documentOpened = self.expectation(description: "documentOpened")
     documentOpened.expectedFulfillmentCount = 2
-    ws.sk.handleNextNotification({ (note: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) in
+    ws.sk.handleNextNotification({ (notification: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) in
       log("Received diagnostics for open - syntactic")
       documentOpened.fulfill()
     })
     ws.sk.appendOneShotNotificationHandler({
-      (note: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) in
+      (notification: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) in
       log("Received diagnostics for open - semantic")
       documentOpened.fulfill()
     })
@@ -79,15 +79,15 @@ final class CrashRecoveryTests: XCTestCase {
         }
         """
     )
-    ws.sk.sendNoteSync(
+    ws.sk.sendNotificationSync(
       DidChangeTextDocumentNotification(
         textDocument: VersionedTextDocumentIdentifier(loc.docUri, version: 2),
         contentChanges: [addFuncChange]
       ),
-      { (note: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) -> Void in
+      { (notification: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) -> Void in
         log("Received diagnostics for text edit - syntactic")
       },
-      { (note: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) -> Void in
+      { (notification: LanguageServerProtocol.Notification<PublishDiagnosticsNotification>) -> Void in
         log("Received diagnostics for text edit - semantic")
       }
     )

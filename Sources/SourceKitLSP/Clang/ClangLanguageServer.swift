@@ -366,8 +366,8 @@ extension ClangLanguageServerShim {
 
   /// Intercept clangd's `PublishDiagnosticsNotification` to withold it if we're using fallback
   /// build settings.
-  func publishDiagnostics(_ note: Notification<PublishDiagnosticsNotification>) async {
-    let params = note.params
+  func publishDiagnostics(_ notification: Notification<PublishDiagnosticsNotification>) async {
+    let params = notification.params
     // Technically, the publish diagnostics notification could still originate
     // from when we opened the file with fallback build settings and we could
     // have received real build settings since, which haven't been acknowledged
@@ -394,7 +394,7 @@ extension ClangLanguageServerShim {
         )
       )
     } else {
-      await sourceKitServer.sendNotificationToClient(note.params)
+      await sourceKitServer.sendNotificationToClient(notification.params)
     }
   }
 
@@ -431,30 +431,30 @@ extension ClangLanguageServerShim {
 
   // MARK: - Text synchronization
 
-  public func openDocument(_ note: DidOpenTextDocumentNotification) async {
-    openDocuments[note.textDocument.uri] = note.textDocument.language
+  public func openDocument(_ notification: DidOpenTextDocumentNotification) async {
+    openDocuments[notification.textDocument.uri] = notification.textDocument.language
     // Send clangd the build settings for the new file. We need to do this before
     // sending the open notification, so that the initial diagnostics already
     // have build settings.
-    await documentUpdatedBuildSettings(note.textDocument.uri)
-    clangd.send(note)
+    await documentUpdatedBuildSettings(notification.textDocument.uri)
+    clangd.send(notification)
   }
 
-  public func closeDocument(_ note: DidCloseTextDocumentNotification) {
-    openDocuments[note.textDocument.uri] = nil
-    clangd.send(note)
+  public func closeDocument(_ notification: DidCloseTextDocumentNotification) {
+    openDocuments[notification.textDocument.uri] = nil
+    clangd.send(notification)
   }
 
-  public func changeDocument(_ note: DidChangeTextDocumentNotification) {
-    clangd.send(note)
+  public func changeDocument(_ notification: DidChangeTextDocumentNotification) {
+    clangd.send(notification)
   }
 
-  public func willSaveDocument(_ note: WillSaveTextDocumentNotification) {
+  public func willSaveDocument(_ notification: WillSaveTextDocumentNotification) {
 
   }
 
-  public func didSaveDocument(_ note: DidSaveTextDocumentNotification) {
-    clangd.send(note)
+  public func didSaveDocument(_ notification: DidSaveTextDocumentNotification) {
+    clangd.send(notification)
   }
 
   // MARK: - Build System Integration
@@ -476,13 +476,13 @@ extension ClangLanguageServerShim {
     if let compileCommand = clangBuildSettings?.compileCommand,
       let pathString = (try? AbsolutePath(validating: url.path))?.pathString
     {
-      let note = DidChangeConfigurationNotification(
+      let notification = DidChangeConfigurationNotification(
         settings: .clangd(
           ClangWorkspaceSettings(
             compilationDatabaseChanges: [pathString: compileCommand])
         )
       )
-      clangd.send(note)
+      clangd.send(notification)
     }
   }
 
@@ -490,12 +490,12 @@ extension ClangLanguageServerShim {
     // In order to tell clangd to reload an AST, we send it an empty `didChangeTextDocument`
     // with `forceRebuild` set in case any missing header files have been added.
     // This works well for us as the moment since clangd ignores the document version.
-    let note = DidChangeTextDocumentNotification(
+    let notification = DidChangeTextDocumentNotification(
       textDocument: VersionedTextDocumentIdentifier(uri, version: 0),
       contentChanges: [],
       forceRebuild: true
     )
-    clangd.send(note)
+    clangd.send(notification)
   }
 
   // MARK: - Text Document

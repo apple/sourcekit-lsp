@@ -109,19 +109,19 @@ final class PullDiagnosticsTests: XCTestCase {
     XCTAssertEqual(diagnostics.count, 1)
     let diagnostic = try XCTUnwrap(diagnostics.first)
     XCTAssertEqual(diagnostic.range, Position(line: 4, utf16index: 7)..<Position(line: 4, utf16index: 7))
-    let note = try XCTUnwrap(diagnostic.relatedInformation?.first)
-    XCTAssertEqual(note.location.range, Position(line: 4, utf16index: 7)..<Position(line: 4, utf16index: 7))
-    XCTAssertEqual(note.codeActions?.count ?? 0, 1)
+    let notification = try XCTUnwrap(diagnostic.relatedInformation?.first)
+    XCTAssertEqual(notification.location.range, Position(line: 4, utf16index: 7)..<Position(line: 4, utf16index: 7))
+    XCTAssertEqual(notification.codeActions?.count ?? 0, 1)
 
     let response = try sk.sendSync(
       CodeActionRequest(
-        range: note.location.range,
+        range: notification.location.range,
         context: CodeActionContext(
           diagnostics: diagnostics,
           only: [.quickFix],
           triggerKind: .invoked
         ),
-        textDocument: TextDocumentIdentifier(note.location.uri)
+        textDocument: TextDocumentIdentifier(notification.location.uri)
       )
     )
 

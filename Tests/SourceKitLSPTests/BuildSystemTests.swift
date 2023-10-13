@@ -169,7 +169,7 @@ final class BuildSystemTests: XCTestCase {
 
     let documentManager = await self.testServer.server!._documentManager
 
-    sk.sendNoteSync(
+    sk.sendNotificationSync(
       DidOpenTextDocumentNotification(
         textDocument: TextDocumentItem(
           uri: doc,
@@ -178,8 +178,8 @@ final class BuildSystemTests: XCTestCase {
           text: text
         )
       ),
-      { (note: Notification<PublishDiagnosticsNotification>) in
-        XCTAssertEqual(note.params.diagnostics.count, 1)
+      { (notification: Notification<PublishDiagnosticsNotification>) in
+        XCTAssertEqual(notification.params.diagnostics.count, 1)
         XCTAssertEqual(text, documentManager.latestSnapshot(doc)!.text)
       }
     )
@@ -190,8 +190,8 @@ final class BuildSystemTests: XCTestCase {
     buildSystem.buildSettingsByFile[doc] = newSettings
 
     let expectation = XCTestExpectation(description: "refresh")
-    sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
-      XCTAssertEqual(note.params.diagnostics.count, 0)
+    sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
+      XCTAssertEqual(notification.params.diagnostics.count, 0)
       XCTAssertEqual(text, documentManager.latestSnapshot(doc)!.text)
       expectation.fulfill()
     }
@@ -220,7 +220,7 @@ final class BuildSystemTests: XCTestCase {
 
     let documentManager = await self.testServer.server!._documentManager
 
-    sk.sendNoteSync(
+    sk.sendNotificationSync(
       DidOpenTextDocumentNotification(
         textDocument: TextDocumentItem(
           uri: doc,
@@ -229,14 +229,14 @@ final class BuildSystemTests: XCTestCase {
           text: text
         )
       ),
-      { (note: Notification<PublishDiagnosticsNotification>) in
+      { (notification: Notification<PublishDiagnosticsNotification>) in
         // Syntactic analysis - no expected errors here.
-        XCTAssertEqual(note.params.diagnostics.count, 0)
+        XCTAssertEqual(notification.params.diagnostics.count, 0)
         XCTAssertEqual(text, documentManager.latestSnapshot(doc)!.text)
       },
-      { (note: Notification<PublishDiagnosticsNotification>) in
+      { (notification: Notification<PublishDiagnosticsNotification>) in
         // Semantic analysis - expect one error here.
-        XCTAssertEqual(note.params.diagnostics.count, 1)
+        XCTAssertEqual(notification.params.diagnostics.count, 1)
       }
     )
 
@@ -247,14 +247,14 @@ final class BuildSystemTests: XCTestCase {
 
     let expectation = XCTestExpectation(description: "refresh")
     expectation.expectedFulfillmentCount = 2
-    sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
+    sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
       // Semantic analysis - SourceKit currently caches diagnostics so we still see an error.
-      XCTAssertEqual(note.params.diagnostics.count, 1)
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
       expectation.fulfill()
     }
-    sk.appendOneShotNotificationHandler { (note: Notification<PublishDiagnosticsNotification>) in
+    sk.appendOneShotNotificationHandler { (notification: Notification<PublishDiagnosticsNotification>) in
       // Semantic analysis - no expected errors here because we fixed the settings.
-      XCTAssertEqual(note.params.diagnostics.count, 0)
+      XCTAssertEqual(notification.params.diagnostics.count, 0)
       expectation.fulfill()
     }
     await buildSystem.delegate?.fileBuildSettingsChanged([doc])
@@ -287,7 +287,7 @@ final class BuildSystemTests: XCTestCase {
 
     let documentManager = await self.testServer.server!._documentManager
 
-    sk.sendNoteSync(
+    sk.sendNotificationSync(
       DidOpenTextDocumentNotification(
         textDocument: TextDocumentItem(
           uri: doc,
@@ -296,9 +296,9 @@ final class BuildSystemTests: XCTestCase {
           text: text
         )
       ),
-      { (note: Notification<PublishDiagnosticsNotification>) in
+      { (notification: Notification<PublishDiagnosticsNotification>) in
         // Expect diagnostics to be withheld.
-        XCTAssertEqual(note.params.diagnostics.count, 0)
+        XCTAssertEqual(notification.params.diagnostics.count, 0)
         XCTAssertEqual(text, documentManager.latestSnapshot(doc)!.text)
       }
     )
@@ -309,8 +309,8 @@ final class BuildSystemTests: XCTestCase {
     buildSystem.buildSettingsByFile[doc] = newSettings
 
     let expectation = XCTestExpectation(description: "refresh due to fallback --> primary")
-    sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
-      XCTAssertEqual(note.params.diagnostics.count, 1)
+    sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
       XCTAssertEqual(text, documentManager.latestSnapshot(doc)!.text)
       expectation.fulfill()
     }
@@ -341,7 +341,7 @@ final class BuildSystemTests: XCTestCase {
 
     let documentManager = await self.testServer.server!._documentManager
 
-    sk.sendNoteSync(
+    sk.sendNotificationSync(
       DidOpenTextDocumentNotification(
         textDocument: TextDocumentItem(
           uri: doc,
@@ -350,14 +350,14 @@ final class BuildSystemTests: XCTestCase {
           text: text
         )
       ),
-      { (note: Notification<PublishDiagnosticsNotification>) in
+      { (notification: Notification<PublishDiagnosticsNotification>) in
         // Syntactic analysis - one expected errors here (for `func`).
-        XCTAssertEqual(note.params.diagnostics.count, 1)
+        XCTAssertEqual(notification.params.diagnostics.count, 1)
         XCTAssertEqual(text, documentManager.latestSnapshot(doc)!.text)
       },
-      { (note: Notification<PublishDiagnosticsNotification>) in
+      { (notification: Notification<PublishDiagnosticsNotification>) in
         // Should be the same syntactic analysis since we are using fallback arguments
-        XCTAssertEqual(note.params.diagnostics.count, 1)
+        XCTAssertEqual(notification.params.diagnostics.count, 1)
       }
     )
 
@@ -365,14 +365,14 @@ final class BuildSystemTests: XCTestCase {
     buildSystem.buildSettingsByFile[doc] = primarySettings
     let expectation = XCTestExpectation(description: "refresh due to fallback --> primary")
     expectation.expectedFulfillmentCount = 2
-    sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
+    sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
       // Syntactic analysis with new args - one expected errors here (for `func`).
-      XCTAssertEqual(note.params.diagnostics.count, 1)
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
       expectation.fulfill()
     }
-    sk.appendOneShotNotificationHandler { (note: Notification<PublishDiagnosticsNotification>) in
+    sk.appendOneShotNotificationHandler { (notification: Notification<PublishDiagnosticsNotification>) in
       // Semantic analysis - two errors since `-DFOO` was not passed.
-      XCTAssertEqual(note.params.diagnostics.count, 2)
+      XCTAssertEqual(notification.params.diagnostics.count, 2)
       expectation.fulfill()
     }
     await buildSystem.delegate?.fileBuildSettingsChanged([doc])
@@ -389,9 +389,9 @@ final class BuildSystemTests: XCTestCase {
     ws.testServer.client.allowUnexpectedNotification = false
 
     let expectation = self.expectation(description: "initial")
-    ws.testServer.client.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.testServer.client.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
       // Should withhold diagnostics since we should be using fallback arguments.
-      XCTAssertEqual(note.params.diagnostics.count, 0)
+      XCTAssertEqual(notification.params.diagnostics.count, 0)
       expectation.fulfill()
     }
 
@@ -399,9 +399,9 @@ final class BuildSystemTests: XCTestCase {
     try await fulfillmentOfOrThrow([expectation])
 
     let use_d = self.expectation(description: "update settings to d.cpp")
-    ws.testServer.client.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
-      XCTAssertEqual(note.params.diagnostics.count, 1)
-      if let diag = note.params.diagnostics.first {
+    ws.testServer.client.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
+      if let diag = notification.params.diagnostics.first {
         XCTAssertEqual(diag.severity, .warning)
         XCTAssertEqual(diag.message, "UNIQUE_INCLUDED_FROM_D")
       }
@@ -412,9 +412,9 @@ final class BuildSystemTests: XCTestCase {
     try await fulfillmentOfOrThrow([use_d])
 
     let use_c = self.expectation(description: "update settings to c.cpp")
-    ws.testServer.client.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
-      XCTAssertEqual(note.params.diagnostics.count, 1)
-      if let diag = note.params.diagnostics.first {
+    ws.testServer.client.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
+      if let diag = notification.params.diagnostics.first {
         XCTAssertEqual(diag.severity, .warning)
         XCTAssertEqual(diag.message, "UNIQUE_INCLUDED_FROM_C")
       }

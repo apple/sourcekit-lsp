@@ -58,37 +58,37 @@ class ConnectionTests: XCTestCase {
   func testMessageBuffer() throws {
     let client = connection.client
     let clientConnection = connection.clientConnection
-    let expectation = self.expectation(description: "note received")
+    let expectation = self.expectation(description: "notification received")
 
-    client.handleNextNotification { (note: Notification<EchoNotification>) in
-      XCTAssertEqual(note.params.string, "hello!")
+    client.handleNextNotification { (notification: Notification<EchoNotification>) in
+      XCTAssertEqual(notification.params.string, "hello!")
       expectation.fulfill()
     }
 
-    let note1 = try JSONEncoder().encode(JSONRPCMessage.notification(EchoNotification(string: "hello!")))
-    let note2 = try JSONEncoder().encode(JSONRPCMessage.notification(EchoNotification(string: "no way!")))
+    let notification1 = try JSONEncoder().encode(JSONRPCMessage.notification(EchoNotification(string: "hello!")))
+    let notification2 = try JSONEncoder().encode(JSONRPCMessage.notification(EchoNotification(string: "no way!")))
 
-    let note1Str: String = "Content-Length: \(note1.count)\r\n\r\n\(String(data: note1, encoding: .utf8)!)"
-    let note2Str: String = "Content-Length: \(note2.count)\r\n\r\n\(String(data: note2, encoding: .utf8)!)"
+    let notification1Str: String = "Content-Length: \(notification1.count)\r\n\r\n\(String(data: notification1, encoding: .utf8)!)"
+    let notification2Str: String = "Content-Length: \(notification2.count)\r\n\r\n\(String(data: notification2, encoding: .utf8)!)"
 
-    for b in note1Str.utf8.dropLast() {
+    for b in notification1Str.utf8.dropLast() {
       clientConnection.send(_rawData: [b].withUnsafeBytes { DispatchData(bytes: $0) })
     }
 
     clientConnection.send(
-      _rawData: [note1Str.utf8.last!, note2Str.utf8.first!].withUnsafeBytes { DispatchData(bytes: $0) }
+      _rawData: [notification1Str.utf8.last!, notification2Str.utf8.first!].withUnsafeBytes { DispatchData(bytes: $0) }
     )
 
     waitForExpectations(timeout: defaultTimeout)
 
-    let expectation2 = self.expectation(description: "note received")
+    let expectation2 = self.expectation(description: "notification received")
 
-    client.handleNextNotification { (note: Notification<EchoNotification>) in
-      XCTAssertEqual(note.params.string, "no way!")
+    client.handleNextNotification { (notification: Notification<EchoNotification>) in
+      XCTAssertEqual(notification.params.string, "no way!")
       expectation2.fulfill()
     }
 
-    for b in note2Str.utf8.dropFirst() {
+    for b in notification2Str.utf8.dropFirst() {
       clientConnection.send(_rawData: [b].withUnsafeBytes { DispatchData(bytes: $0) })
     }
 
@@ -121,12 +121,12 @@ class ConnectionTests: XCTestCase {
     waitForExpectations(timeout: defaultTimeout)
   }
 
-  func testEchoNote() {
+  func testEchoNotification() {
     let client = connection.client
-    let expectation = self.expectation(description: "note received")
+    let expectation = self.expectation(description: "notification received")
 
-    client.handleNextNotification { (note: Notification<EchoNotification>) in
-      XCTAssertEqual(note.params.string, "hello!")
+    client.handleNextNotification { (notification: Notification<EchoNotification>) in
+      XCTAssertEqual(notification.params.string, "hello!")
       expectation.fulfill()
     }
 
@@ -154,13 +154,13 @@ class ConnectionTests: XCTestCase {
 
   func testUnknownNotification() {
     let client = connection.client
-    let expectation = self.expectation(description: "note received")
+    let expectation = self.expectation(description: "notification received")
 
-    struct UnknownNote: NotificationType {
+    struct UnknownNotification: NotificationType {
       static let method: String = "unknown"
     }
 
-    client.send(UnknownNote())
+    client.send(UnknownNotification())
 
     // Nothing bad should happen; check that the next request works.
 
@@ -195,7 +195,7 @@ class ConnectionTests: XCTestCase {
 
   func testSendAfterClose() {
     let client = connection.client
-    let expectation = self.expectation(description: "note received")
+    let expectation = self.expectation(description: "notification received")
 
     connection.clientConnection.close()
 
@@ -218,7 +218,7 @@ class ConnectionTests: XCTestCase {
     let server = connection.server
 
     let expectation = self.expectation(description: "received notification")
-    client.handleNextNotification { (note: Notification<EchoNotification>) in
+    client.handleNextNotification { (notification: Notification<EchoNotification>) in
       expectation.fulfill()
     }
 
@@ -232,7 +232,7 @@ class ConnectionTests: XCTestCase {
     let client = connection.client
 
     let expectation = self.expectation(description: "received notification")
-    client.handleNextNotification { (note: Notification<EchoNotification>) in
+    client.handleNextNotification { (notification: Notification<EchoNotification>) in
       expectation.fulfill()
     }
     let notification = EchoNotification(string: "about to close!")

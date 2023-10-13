@@ -270,15 +270,15 @@ final class SKTests: XCTestCase {
     let moduleRef = ws.testLoc("aaa:call:c")
     let startExpectation = XCTestExpectation(description: "initial diagnostics")
     startExpectation.expectedFulfillmentCount = 2
-    ws.sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
       // Semantic analysis: no errors expected here.
-      XCTAssertEqual(note.params.diagnostics.count, 0)
+      XCTAssertEqual(notification.params.diagnostics.count, 0)
       startExpectation.fulfill()
     }
-    ws.sk.appendOneShotNotificationHandler { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.appendOneShotNotificationHandler { (notification: Notification<PublishDiagnosticsNotification>) in
       // Semantic analysis: expect module import error.
-      XCTAssertEqual(note.params.diagnostics.count, 1)
-      if let diagnostic = note.params.diagnostics.first {
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
+      if let diagnostic = notification.params.diagnostics.first {
         XCTAssert(
           diagnostic.message.contains("no such module"),
           "expected module import error but found \"\(diagnostic.message)\""
@@ -294,14 +294,14 @@ final class SKTests: XCTestCase {
 
     let finishExpectation = XCTestExpectation(description: "post-build diagnostics")
     finishExpectation.expectedFulfillmentCount = 2
-    ws.sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
       // Semantic analysis - SourceKit currently caches diagnostics so we still see an error.
-      XCTAssertEqual(note.params.diagnostics.count, 1)
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
       finishExpectation.fulfill()
     }
-    ws.sk.appendOneShotNotificationHandler { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.appendOneShotNotificationHandler { (notification: Notification<PublishDiagnosticsNotification>) in
       // Semantic analysis: no more errors expected, import should resolve since we built.
-      XCTAssertEqual(note.params.diagnostics.count, 0)
+      XCTAssertEqual(notification.params.diagnostics.count, 0)
       finishExpectation.fulfill()
     }
     await server.filesDependenciesUpdated([DocumentURI(moduleRef.url)])
@@ -319,10 +319,10 @@ final class SKTests: XCTestCase {
 
     let moduleRef = ws.testLoc("libX:call:main")
     let startExpectation = XCTestExpectation(description: "initial diagnostics")
-    ws.sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
       // Expect one error:
       // - Implicit declaration of function invalid
-      XCTAssertEqual(note.params.diagnostics.count, 1)
+      XCTAssertEqual(notification.params.diagnostics.count, 1)
       startExpectation.fulfill()
     }
 
@@ -341,10 +341,10 @@ final class SKTests: XCTestCase {
     try ws.buildAndIndex()
 
     let finishExpectation = XCTestExpectation(description: "post-build diagnostics")
-    ws.sk.handleNextNotification { (note: Notification<PublishDiagnosticsNotification>) in
+    ws.sk.handleNextNotification { (notification: Notification<PublishDiagnosticsNotification>) in
       // No more errors expected, import should resolve since we the generated header file
       // now has the proper contents.
-      XCTAssertEqual(note.params.diagnostics.count, 0)
+      XCTAssertEqual(notification.params.diagnostics.count, 0)
       finishExpectation.fulfill()
     }
     await server.filesDependenciesUpdated([DocumentURI(moduleRef.url)])
