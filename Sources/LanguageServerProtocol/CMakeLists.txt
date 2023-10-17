@@ -64,6 +64,7 @@ add_library(LanguageServerProtocol STATIC
   Requests/InlineValueRefreshRequest.swift
   Requests/InlineValueRequest.swift
   Requests/LinkedEditingRangeRequest.swift
+  Requests/MacroExpansionRequest.swift
   Requests/MonikersRequest.swift
   Requests/OpenInterfaceRequest.swift
   Requests/PollIndexRequest.swift
@@ -107,6 +108,7 @@ add_library(LanguageServerProtocol STATIC
   SupportTypes/LocationLink.swift
   SupportTypes/LocationsOrLocationLinksResponse.swift
   SupportTypes/LSPAny.swift
+  SupportTypes/MacroExpansion.swift
   SupportTypes/MarkupContent.swift
   SupportTypes/NotebookCellTextDocumentFilter.swift
   SupportTypes/NotebookDocument.swift

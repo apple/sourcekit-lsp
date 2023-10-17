@@ -569,11 +569,11 @@ extension SwiftLanguageServer {
 
   /// Returns true if the `ToolchainLanguageServer` will take ownership of the request.
   public func definition(_ request: DefinitionRequest) async throws -> LocationsOrLocationLinksResponse? {
-    throw ResponseError.unknown("unsupported method")
+    throw ResponseError.unsupportedMethod
   }
 
   public func declaration(_ request: DeclarationRequest) async throws -> LocationsOrLocationLinksResponse? {
-    throw ResponseError.unknown("unsupported method")
+    throw ResponseError.unsupportedMethod
   }
 
   public func hover(_ req: HoverRequest) async throws -> HoverResponse? {
@@ -1284,6 +1284,32 @@ extension SwiftLanguageServer {
     )
 
     return .full(RelatedFullDocumentDiagnosticReport(items: diagnostics))
+  }
+
+  public func macroExpansion(_ req: MacroExpansionRequest) async throws -> [MacroExpansion] {
+    let command = SemanticRefactorCommand(
+      title: "Expand Macro",
+      actionString: "source.refactoring.kind.expand.macro",
+      positionRange: req.range,
+      textDocument: req.textDocument
+    )
+    
+    do {
+      let refactor = try await semanticRefactoring(command)
+
+      guard let edits = refactor.edit.changes?[req.textDocument.uri] else {
+        return []
+      }
+
+      return edits.map { edit in
+        MacroExpansion(
+          position: edit.range.lowerBound,
+          sourceText: edit.newText
+        )
+      }
+    } catch SemanticRefactoringError.noEditsNeeded {
+      return []
+    }
   }
 
   public func executeCommand(_ req: ExecuteCommandRequest) async throws -> LSPAny? {

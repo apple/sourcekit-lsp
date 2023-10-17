@@ -571,6 +571,10 @@ extension ClangLanguageServerShim {
     return try await forwardRequestToClangd(req)
   }
 
+  func macroExpansion(_ req: MacroExpansionRequest) async throws -> [MacroExpansion] {
+    throw ResponseError.unsupportedMethod
+  }
+
   func foldingRange(_ req: FoldingRangeRequest) async throws -> [FoldingRange]? {
     guard self.capabilities?.foldingRangeProvider?.isSupported ?? false else {
       return nil
@@ -579,7 +583,7 @@ extension ClangLanguageServerShim {
   }
 
   func openInterface(_ request: OpenInterfaceRequest) async throws -> InterfaceDetails? {
-    throw ResponseError.unknown("unsupported method")
+    throw ResponseError.unsupportedMethod
   }
 
   // MARK: - Other

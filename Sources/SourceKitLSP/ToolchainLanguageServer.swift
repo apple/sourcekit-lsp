@@ -104,6 +104,7 @@ public protocol ToolchainLanguageServer: AnyObject {
   func codeAction(_ req: CodeActionRequest) async throws -> CodeActionRequestResponse?
   func inlayHint(_ req: InlayHintRequest) async throws -> [InlayHint]
   func documentDiagnostic(_ req: DocumentDiagnosticsRequest) async throws -> DocumentDiagnosticReport
+  func macroExpansion(_ req: MacroExpansionRequest) async throws -> [MacroExpansion]
 
   // MARK: - Other
 

@@ -55,6 +55,7 @@ public let builtinRequests: [_RequestType.Type] = [
   InlineValueRefreshRequest.self,
   InlineValueRequest.self,
   LinkedEditingRangeRequest.self,
+  MacroExpansionRequest.self,
   MonikersRequest.self,
   OpenInterfaceRequest.self,
   PollIndexRequest.self,

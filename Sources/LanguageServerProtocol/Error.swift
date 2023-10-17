@@ -107,6 +107,11 @@ extension ResponseError {
     message: "request cancelled by server"
   )
 
+  public static var unsupportedMethod: ResponseError = ResponseError(
+    code: .unknownErrorCode,
+    message: "unsupported method"
+  )
+
   public static func workspaceNotOpen(_ uri: DocumentURI) -> ResponseError {
     return ResponseError(code: .workspaceNotOpen, message: "No workspace containing '\(uri)' found")
   }
