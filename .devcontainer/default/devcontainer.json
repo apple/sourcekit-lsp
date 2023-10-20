@@ -12,8 +12,8 @@
     "source=${localWorkspaceFolderBasename}-build,target=${containerWorkspaceFolder}/build,type=volume"
   ],
   "remoteEnv": {
-    "PATH": "${containerWorkspaceFolder}/.build/bin:${containerEnv:PATH}"
-  },
+    // `/usr/bin` must be first: https://github.com/apple/sourcekit-lsp/blob/main/Documentation/Development.md#linux
+    "PATH": "/usr/bin:${containerWorkspaceFolder}/.build/bin:${containerEnv:PATH}" },
   "customizations": {
     "vscode": {
       "extensions": [
