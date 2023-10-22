@@ -22,7 +22,13 @@
       ],
       "settings": {
         "lldb.launch.expressions": "native",
-        "lldb.library": "/usr/lib/liblldb.so"
+        "lldb.library": "/usr/lib/liblldb.so",
+        "swift.buildArguments": [
+          "-Xcxx",
+          "-I/usr/lib/swift",
+          "-Xcxx",
+          "-I/usr/lib/swift/Block"
+        ]
       }
     }
   }
