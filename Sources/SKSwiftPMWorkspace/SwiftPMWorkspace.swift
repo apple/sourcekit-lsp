@@ -449,7 +449,7 @@ extension SwiftPMWorkspace {
       "-emit-dependencies",
       "-emit-module",
       "-emit-module-path",
-      buildPath.appending(component: "\(td.target.c99name).swiftmodule").pathString,
+      td.modulesPath.appending(component: "\(td.target.c99name).swiftmodule").pathString,
       // -output-file-map <path>
     ]
     if td.target.type == .library || td.target.type == .test {
@@ -457,7 +457,7 @@ extension SwiftPMWorkspace {
     }
     args += ["-c"]
     args += td.sources.map { $0.pathString }
-    args += ["-I", td.moduleOutputPath.parentDirectory.pathString]
+    args += ["-I", td.modulesPath.pathString]
     args += try td.compileArguments()
 
     return FileBuildSettings(
