@@ -20,7 +20,6 @@ find_package(SwiftPM QUIET)
 find_package(LLBuild QUIET)
 find_package(ArgumentParser CONFIG REQUIRED)
 find_package(SwiftCollections QUIET)
-find_package(SwiftSystem CONFIG REQUIRED)
 find_package(SwiftSyntax CONFIG REQUIRED)
 find_package(SwiftCrypto CONFIG REQUIRED)
 
