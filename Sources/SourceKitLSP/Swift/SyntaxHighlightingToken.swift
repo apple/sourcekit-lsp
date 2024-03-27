@@ -48,48 +48,6 @@ public struct SyntaxHighlightingToken: Hashable {
   }
 }
 
-extension Array where Element == SyntaxHighlightingToken {
-  /// The LSP representation of syntax highlighting tokens. Note that this
-  /// requires the tokens in this array to be sorted.
-  public var lspEncoded: [UInt32] {
-    var previous = Position(line: 0, utf16index: 0)
-    var rawTokens: [UInt32] = []
-    rawTokens.reserveCapacity(count * 5)
-
-    for token in self {
-      let lineDelta = token.start.line - previous.line
-      let charDelta =
-        token.start.utf16index - (
-          // The character delta is relative to the previous token's start
-          // only if the token is on the previous token's line.
-          previous.line == token.start.line ? previous.utf16index : 0)
-
-      // We assert that the tokens are actually sorted
-      assert(lineDelta >= 0)
-      assert(charDelta >= 0)
-
-      previous = token.start
-      rawTokens += [
-        UInt32(lineDelta),
-        UInt32(charDelta),
-        UInt32(token.utf16length),
-        token.kind.tokenType,
-        token.modifiers.rawValue,
-      ]
-    }
-
-    return rawTokens
-  }
-
-  /// Merges the tokens in this array into a new token array,
-  /// preferring the given array's tokens if duplicate ranges are
-  /// found.
-  public func mergingTokens(with other: [SyntaxHighlightingToken]) -> [SyntaxHighlightingToken] {
-    let otherRanges = Set(other.map(\.range))
-    return filter { !otherRanges.contains($0.range) } + other
-  }
-}
-
 extension SemanticTokenTypes {
   /// **(LSP Extension)**
   public static let identifier = Self("identifier")

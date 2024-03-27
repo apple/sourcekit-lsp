@@ -106,11 +106,12 @@ public enum SkipUnless {
       let response = try unwrap(
         await testClient.send(DocumentSemanticTokensRequest(textDocument: TextDocumentIdentifier(uri)))
       )
-      let tokens = [SyntaxHighlightingToken](lspEncodedTokens: response.data)
+
+      let tokens = SyntaxHighlightingTokens(lspEncodedTokens: response.data)
 
       // If we don't have semantic token support in sourcekitd, the second token is an identifier based on the syntax
       // tree, not a property.
-      return tokens != [
+      return tokens.tokens != [
         SyntaxHighlightingToken(
           range: Position(line: 0, utf16index: 0)..<Position(line: 0, utf16index: 1),
           kind: .number,

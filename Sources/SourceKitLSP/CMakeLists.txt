@@ -39,6 +39,7 @@ target_sources(SourceKitLSP PRIVATE
   Swift/SwiftLanguageService.swift
   Swift/SymbolInfo.swift
   Swift/SyntaxHighlightingToken.swift
+  Swift/SyntaxHighlightingTokens.swift
   Swift/SyntaxHighlightingTokenParser.swift
   Swift/SyntaxTreeManager.swift
   Swift/VariableTypeInfo.swift
