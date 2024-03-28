@@ -2,6 +2,7 @@
 add_library(SourceKitLSP STATIC
   CapabilityRegistry.swift
   DocumentManager.swift
+  IndexOutOfDateChecker.swift
   IndexStoreDB+MainFilesProvider.swift
   LanguageService.swift
   Rename.swift
@@ -37,6 +38,7 @@ target_sources(SourceKitLSP PRIVATE
   Swift/SourceKitD+ResponseError.swift
   Swift/SwiftCommand.swift
   Swift/SwiftLanguageService.swift
+  Swift/SwiftTestingScanner.swift
   Swift/SymbolInfo.swift
   Swift/SyntaxHighlightingToken.swift
   Swift/SyntaxHighlightingTokenParser.swift
