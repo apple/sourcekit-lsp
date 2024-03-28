@@ -34,15 +34,65 @@ fileprivate extension SymbolOccurrence {
 }
 
 extension SourceKitLSPServer {
-  func workspaceTests(_ req: WorkspaceTestsRequest) async throws -> [WorkspaceSymbolItem]? {
-    let testSymbols = workspaces.flatMap { (workspace) -> [SymbolOccurrence] in
+  func workspaceTests(_ req: WorkspaceTestsRequest) async throws -> [TestItem] {
+    // Gather all tests classes and test methods.
+    let testSymbolOccurrences = workspaces.flatMap { (workspace) -> [SymbolOccurrence] in
       return workspace.index?.unitTests() ?? []
     }
-    return
-      testSymbols
-      .filter { $0.canBeTestDefinition }
+
+    // Arrange tests by the USR they are contained in. This allows us to emit test methods as children of test classes.
+    // `occurrencesByParent[nil]` are the root test symbols that aren't a child of another test symbol.
+    var occurrencesByParent: [String?: [SymbolOccurrence]] = [:]
+
+    let testSymbolUsrs = Set(testSymbolOccurrences.map(\.symbol.usr))
+
+    for testSymbolOccurrence in testSymbolOccurrences {
+      let childOfUsrs = testSymbolOccurrence.relations
+        .filter { $0.roles.contains(.childOf) }
+        .map(\.symbol.usr)
+        .filter { testSymbolUsrs.contains($0) }
+      if childOfUsrs.count > 1 {
+        logger.fault(
+          "Test symbol \(testSymbolOccurrence.symbol.usr) is child or multiple symbols: \(childOfUsrs.joined(separator: ", "))"
+        )
+      }
+      occurrencesByParent[childOfUsrs.sorted().first, default: []].append(testSymbolOccurrence)
+    }
+
+    /// Returns a test item for the given `testSymbolOccurrence`.
+    ///
+    /// Also includes test items for all tests that are children of this test.
+    ///
+    /// `context` is used to build the test's ID. It is an array containing the names of all parent symbols. These will
+    /// be joined with the test symbol's name using `/` to form the test ID. The test ID can be used to run an
+    /// individual test.
+    func testItem(for testSymbolOccurrence: SymbolOccurrence, context: [String]) -> TestItem {
+      let symbolPosition = Position(
+        line: testSymbolOccurrence.location.line - 1,  // 1-based -> 0-based
+        // FIXME: we need to convert the utf8/utf16 column, which may require reading the file!
+        utf16index: testSymbolOccurrence.location.utf8Column - 1
+      )
+
+      let symbolLocation = Location(
+        uri: DocumentURI(URL(fileURLWithPath: testSymbolOccurrence.location.path)),
+        range: Range(symbolPosition)
+      )
+      let children =
+        occurrencesByParent[testSymbolOccurrence.symbol.usr, default: []]
+        .sorted()
+        .map { testItem(for: $0, context: context + [testSymbolOccurrence.symbol.name]) }
+      return TestItem(
+        id: (context + [testSymbolOccurrence.symbol.name]).joined(separator: "/"),
+        label: testSymbolOccurrence.symbol.name,
+        location: symbolLocation,
+        children: children,
+        tags: []
+      )
+    }
+
+    return occurrencesByParent[nil, default: []]
       .sorted()
-      .map(WorkspaceSymbolItem.init)
+      .map { testItem(for: $0, context: []) }
   }
 
   func documentTests(

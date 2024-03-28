@@ -124,6 +124,7 @@ add_library(LanguageServerProtocol STATIC
   SupportTypes/SKCompletionOptions.swift
   SupportTypes/StringOrMarkupContent.swift
   SupportTypes/SymbolKind.swift
+  SupportTypes/TestItem.swift
   SupportTypes/TextDocumentContentChangeEvent.swift
   SupportTypes/TextDocumentEdit.swift
   SupportTypes/TextDocumentIdentifier.swift

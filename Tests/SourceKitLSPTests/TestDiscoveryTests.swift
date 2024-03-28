@@ -47,27 +47,27 @@ final class TestDiscoveryTests: XCTestCase {
     XCTAssertEqual(
       tests,
       [
-        WorkspaceSymbolItem.symbolInformation(
-          SymbolInformation(
-            name: "MyTests",
-            kind: .class,
-            location: Location(
-              uri: try project.uri(for: "MyTests.swift"),
-              range: Range(try project.position(of: "1️⃣", in: "MyTests.swift"))
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          location: Location(
+            uri: try project.uri(for: "MyTests.swift"),
+            range: Range(try project.position(of: "1️⃣", in: "MyTests.swift"))
+          ),
+          children: [
+            TestItem(
+              id: "MyTests/testMyLibrary()",
+              label: "testMyLibrary()",
+              location: Location(
+                uri: try project.uri(for: "MyTests.swift"),
+                range: Range(try project.position(of: "2️⃣", in: "MyTests.swift"))
+              ),
+              children: [],
+              tags: []
             )
-          )
-        ),
-        WorkspaceSymbolItem.symbolInformation(
-          SymbolInformation(
-            name: "testMyLibrary()",
-            kind: .method,
-            location: Location(
-              uri: try project.uri(for: "MyTests.swift"),
-              range: Range(try project.position(of: "2️⃣", in: "MyTests.swift"))
-            ),
-            containerName: "MyTests"
-          )
-        ),
+          ],
+          tags: []
+        )
       ]
     )
   }
