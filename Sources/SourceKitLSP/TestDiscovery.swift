@@ -34,12 +34,15 @@ fileprivate extension SymbolOccurrence {
 }
 
 extension SourceKitLSPServer {
-  func workspaceTests(_ req: WorkspaceTestsRequest) async throws -> [TestItem] {
-    // Gather all tests classes and test methods.
-    let testSymbolOccurrences = workspaces.flatMap { (workspace) -> [SymbolOccurrence] in
-      return workspace.index?.unitTests() ?? []
-    }
-
+  /// Converts a flat list of test symbol occurrences to hierarchical `TestItem` array, inferring the hierarchical
+  /// structure from `childOf` relations between the symbol occurrences.
+  ///
+  /// If `testLocations` is passed, it's an array of test IDs to the locations of the test cases. This allows us to
+  /// provide ranges for the test cases in source code instead of only the test's location that we get from the index.
+  private func testItems(
+    for testSymbolOccurrences: [SymbolOccurrence],
+    testLocations: [String: Location]
+  ) -> [TestItem] {
     // Arrange tests by the USR they are contained in. This allows us to emit test methods as children of test classes.
     // `occurrencesByParent[nil]` are the root test symbols that aren't a child of another test symbol.
     var occurrencesByParent: [String?: [SymbolOccurrence]] = [:]
@@ -73,18 +76,24 @@ extension SourceKitLSPServer {
         utf16index: testSymbolOccurrence.location.utf8Column - 1
       )
 
-      let symbolLocation = Location(
-        uri: DocumentURI(URL(fileURLWithPath: testSymbolOccurrence.location.path)),
-        range: Range(symbolPosition)
-      )
+      let id = (context + [testSymbolOccurrence.symbol.name]).joined(separator: "/")
+      let location: Location
+      if let syntacticLocation = testLocations[id] {
+        location = syntacticLocation
+      } else {
+        location = Location(
+          uri: DocumentURI(URL(fileURLWithPath: testSymbolOccurrence.location.path)),
+          range: Range(symbolPosition)
+        )
+      }
       let children =
         occurrencesByParent[testSymbolOccurrence.symbol.usr, default: []]
         .sorted()
         .map { testItem(for: $0, context: context + [testSymbolOccurrence.symbol.name]) }
       return TestItem(
-        id: (context + [testSymbolOccurrence.symbol.name]).joined(separator: "/"),
+        id: id,
         label: testSymbolOccurrence.symbol.name,
-        location: symbolLocation,
+        location: location,
         children: children,
         tags: []
       )
@@ -95,16 +104,38 @@ extension SourceKitLSPServer {
       .map { testItem(for: $0, context: []) }
   }
 
+  func workspaceTests(_ req: WorkspaceTestsRequest) async throws -> [TestItem] {
+    // Gather all tests classes and test methods.
+    let testSymbolOccurrences = workspaces.flatMap { (workspace) -> [SymbolOccurrence] in
+      return workspace.index?.unitTests() ?? []
+    }
+    return testItems(for: testSymbolOccurrences, testLocations: [:])
+  }
+
+  /// Extracts a flat dictionary mapping test IDs to their locations from the given `testItems`.
+  private func testLocations(from testItems: [TestItem]) -> [String: Location] {
+    var result: [String: Location] = [:]
+    for testItem in testItems {
+      result[testItem.id] = testItem.location
+      result.merge(testLocations(from: testItem.children)) { old, new in new }
+    }
+    return result
+  }
+
   func documentTests(
     _ req: DocumentTestsRequest,
     workspace: Workspace,
     languageService: LanguageService
-  ) async throws -> [WorkspaceSymbolItem]? {
+  ) async throws -> [TestItem] {
     let snapshot = try self.documentManager.latestSnapshot(req.textDocument.uri)
     let mainFileUri = await workspace.buildSystemManager.mainFile(
       for: req.textDocument.uri,
       language: snapshot.language
     )
+
+    let syntacticTests = try await languageService.syntacticDocumentTests(for: req.textDocument.uri)
+    let testLocations = testLocations(from: syntacticTests)
+
     if let index = workspace.index {
       var outOfDateChecker = IndexOutOfDateChecker()
       let testSymbols =
@@ -112,7 +143,7 @@ extension SourceKitLSPServer {
         .filter { $0.canBeTestDefinition && outOfDateChecker.isUpToDate($0.location) }
 
       if !testSymbols.isEmpty {
-        return testSymbols.sorted().map(WorkspaceSymbolItem.init)
+        return testItems(for: testSymbols, testLocations: testLocations)
       }
       if outOfDateChecker.indexHasUpToDateUnit(for: mainFileUri.pseudoPath, index: index) {
         // The index is up-to-date and doesn't contain any tests. We don't need to do a syntactic fallback.
@@ -120,7 +151,7 @@ extension SourceKitLSPServer {
       }
     }
     // We don't have any up-to-date index entries for this file. Syntactically look for tests.
-    return try await languageService.syntacticDocumentTests(for: req.textDocument.uri)
+    return syntacticTests
   }
 }
 
@@ -133,7 +164,7 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
   private var snapshot: DocumentSnapshot
 
   /// The workspace symbols representing the found `XCTestCase` subclasses and test methods.
-  private var result: [WorkspaceSymbolItem] = []
+  private var result: [TestItem] = []
 
   /// Names of classes that are known to not inherit from `XCTestCase` and can thus be ruled out to be test classes.
   private static let knownNonXCTestSubclasses = ["NSObject"]
@@ -146,15 +177,15 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
   public static func findTestSymbols(
     in snapshot: DocumentSnapshot,
     syntaxTreeManager: SyntaxTreeManager
-  ) async -> [WorkspaceSymbolItem] {
+  ) async -> [TestItem] {
     let syntaxTree = await syntaxTreeManager.syntaxTree(for: snapshot)
     let visitor = SyntacticSwiftXCTestScanner(snapshot: snapshot)
     visitor.walk(syntaxTree)
     return visitor.result
   }
 
-  private func findTestMethods(in members: MemberBlockItemListSyntax, containerName: String) -> [WorkspaceSymbolItem] {
-    return members.compactMap { (member) -> WorkspaceSymbolItem? in
+  private func findTestMethods(in members: MemberBlockItemListSyntax, containerName: String) -> [TestItem] {
+    return members.compactMap { (member) -> TestItem? in
       guard let function = member.decl.as(FunctionDeclSyntax.self) else {
         return nil
       }
@@ -166,25 +197,29 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
         // Test methods can't be static.
         return nil
       }
-      guard function.signature.returnClause == nil else {
-        // Test methods can't have a return type.
+      guard function.signature.returnClause == nil, function.signature.parameterClause.parameters.isEmpty else {
+        // Test methods can't have a return type or have parameters.
         // Technically we are also filtering out functions that have an explicit `Void` return type here but such
         // declarations are probably less common than helper functions that start with `test` and have a return type.
         return nil
       }
-      guard let position = snapshot.position(of: function.name.positionAfterSkippingLeadingTrivia) else {
+      guard
+        let range = snapshot.range(
+          of: function.positionAfterSkippingLeadingTrivia..<function.endPositionBeforeTrailingTrivia
+        )
+      else {
         logger.fault(
-          "Failed to convert offset \(function.name.positionAfterSkippingLeadingTrivia.utf8Offset) to UTF-16-based position"
+          "Failed to convert range \(function.positionAfterSkippingLeadingTrivia.utf8Offset)..<\(function.endPositionBeforeTrailingTrivia.utf8Offset) to UTF-16-based line-column range"
         )
         return nil
       }
-      let symbolInformation = SymbolInformation(
-        name: function.name.text,
-        kind: .method,
-        location: Location(uri: snapshot.uri, range: Range(position)),
-        containerName: containerName
+      return TestItem(
+        id: "\(containerName)/\(function.name.text)()",
+        label: "\(function.name.text)()",
+        location: Location(uri: snapshot.uri, range: range),
+        children: [],
+        tags: []
       )
-      return WorkspaceSymbolItem.symbolInformation(symbolInformation)
     }
   }
 
@@ -207,20 +242,21 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
       // Don't report a test class if it doesn't contain any test methods.
       return .visitChildren
     }
-    guard let position = snapshot.position(of: node.name.positionAfterSkippingLeadingTrivia) else {
+    guard let range = snapshot.range(of: node.positionAfterSkippingLeadingTrivia..<node.endPositionBeforeTrailingTrivia)
+    else {
       logger.fault(
-        "Failed to convert offset \(node.name.positionAfterSkippingLeadingTrivia.utf8Offset) to UTF-16-based position"
+        "Failed to convert range \(node.positionAfterSkippingLeadingTrivia.utf8Offset)..<\(node.endPositionBeforeTrailingTrivia.utf8Offset) to UTF-16-based line-column range"
       )
       return .visitChildren
     }
-    let testClassSymbolInformation = SymbolInformation(
-      name: node.name.text,
-      kind: .class,
-      location: Location(uri: snapshot.uri, range: Range(position)),
-      containerName: nil
+    let testItem = TestItem(
+      id: node.name.text,
+      label: node.name.text,
+      location: Location(uri: snapshot.uri, range: range),
+      children: testMethods,
+      tags: []
     )
-    result.append(.symbolInformation(testClassSymbolInformation))
-    result += testMethods
+    result.append(testItem)
     return .visitChildren
   }
 
@@ -231,14 +267,14 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
 }
 
 extension SwiftLanguageService {
-  public func syntacticDocumentTests(for uri: DocumentURI) async throws -> [WorkspaceSymbolItem]? {
+  public func syntacticDocumentTests(for uri: DocumentURI) async throws -> [TestItem] {
     let snapshot = try documentManager.latestSnapshot(uri)
     return await SyntacticSwiftXCTestScanner.findTestSymbols(in: snapshot, syntaxTreeManager: syntaxTreeManager)
   }
 }
 
 extension ClangLanguageService {
-  public func syntacticDocumentTests(for uri: DocumentURI) async -> [WorkspaceSymbolItem]? {
-    return nil
+  public func syntacticDocumentTests(for uri: DocumentURI) async -> [TestItem] {
+    return []
   }
 }

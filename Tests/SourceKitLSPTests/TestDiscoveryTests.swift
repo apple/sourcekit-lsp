@@ -80,11 +80,11 @@ final class TestDiscoveryTests: XCTestCase {
         "Tests/MyLibraryTests/MyTests.swift": """
         import XCTest
 
-        class 1️⃣MyTests: XCTestCase {
-          func 2️⃣testMyLibrary() {}
+        1️⃣class MyTests: XCTestCase {
+          2️⃣func testMyLibrary() {}3️⃣
           func unrelatedFunc() {}
           var testVariable: Int = 0
-        }
+        }4️⃣
         """,
         "Tests/MyLibraryTests/MoreTests.swift": """
         import XCTest
@@ -112,27 +112,21 @@ final class TestDiscoveryTests: XCTestCase {
     XCTAssertEqual(
       tests,
       [
-        WorkspaceSymbolItem.symbolInformation(
-          SymbolInformation(
-            name: "MyTests",
-            kind: .class,
-            location: Location(
-              uri: uri,
-              range: Range(positions["1️⃣"])
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/testMyLibrary()",
+              label: "testMyLibrary()",
+              location: Location(uri: try project.uri(for: "MyTests.swift"), range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
             )
-          )
-        ),
-        WorkspaceSymbolItem.symbolInformation(
-          SymbolInformation(
-            name: "testMyLibrary()",
-            kind: .method,
-            location: Location(
-              uri: try project.uri(for: "MyTests.swift"),
-              range: Range(positions["2️⃣"])
-            ),
-            containerName: "MyTests"
-          )
-        ),
+          ],
+          tags: []
+        )
       ]
     )
   }
@@ -145,11 +139,11 @@ final class TestDiscoveryTests: XCTestCase {
       """
       import XCTest
 
-      class 1️⃣MyTests: XCTestCase {
-        func 2️⃣testMyLibrary() {}
+      1️⃣class MyTests: XCTestCase {
+        2️⃣func testMyLibrary() {}3️⃣
         func unrelatedFunc() {}
         var testVariable: Int = 0
-      }
+      }4️⃣
       """,
       uri: uri
     )
@@ -158,27 +152,21 @@ final class TestDiscoveryTests: XCTestCase {
     XCTAssertEqual(
       tests,
       [
-        WorkspaceSymbolItem.symbolInformation(
-          SymbolInformation(
-            name: "MyTests",
-            kind: .class,
-            location: Location(
-              uri: uri,
-              range: Range(positions["1️⃣"])
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/testMyLibrary()",
+              label: "testMyLibrary()",
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
             )
-          )
-        ),
-        WorkspaceSymbolItem.symbolInformation(
-          SymbolInformation(
-            name: "testMyLibrary",
-            kind: .method,
-            location: Location(
-              uri: uri,
-              range: Range(positions["2️⃣"])
-            ),
-            containerName: "MyTests"
-          )
-        ),
+          ],
+          tags: []
+        )
       ]
     )
   }
@@ -193,11 +181,11 @@ final class TestDiscoveryTests: XCTestCase {
 
         class LooksLikeTestCaseButIsNot {}
 
-        class 1️⃣MyTests: LooksLikeTestCaseButIsNot {
-          func 2️⃣testMyLibrary() {}
+        1️⃣class MyTests: LooksLikeTestCaseButIsNot {
+          2️⃣func testMyLibrary() {}3️⃣
           func unrelatedFunc() {}
           var testVariable: Int = 0
-        }
+        }4️⃣
         """
       ],
       manifest: """
@@ -222,27 +210,21 @@ final class TestDiscoveryTests: XCTestCase {
     XCTAssertEqual(
       syntacticTests,
       [
-        WorkspaceSymbolItem.symbolInformation(
-          SymbolInformation(
-            name: "MyTests",
-            kind: .class,
-            location: Location(
-              uri: uri,
-              range: Range(positions["1️⃣"])
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/testMyLibrary()",
+              label: "testMyLibrary()",
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
             )
-          )
-        ),
-        WorkspaceSymbolItem.symbolInformation(
-          SymbolInformation(
-            name: "testMyLibrary",
-            kind: .method,
-            location: Location(
-              uri: try project.uri(for: "MyTests.swift"),
-              range: Range(positions["2️⃣"])
-            ),
-            containerName: "MyTests"
-          )
-        ),
+          ],
+          tags: []
+        )
       ]
     )
 
