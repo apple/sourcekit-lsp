@@ -50,6 +50,8 @@ final class TestDiscoveryTests: XCTestCase {
         TestItem(
           id: "MyTests",
           label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleXCTest,
           location: Location(
             uri: try project.uri(for: "MyTests.swift"),
             range: Range(try project.position(of: "1️⃣", in: "MyTests.swift"))
@@ -58,6 +60,8 @@ final class TestDiscoveryTests: XCTestCase {
             TestItem(
               id: "MyTests/testMyLibrary()",
               label: "testMyLibrary()",
+              disabled: false,
+              style: TestItem.testStyleXCTest,
               location: Location(
                 uri: try project.uri(for: "MyTests.swift"),
                 range: Range(try project.position(of: "2️⃣", in: "MyTests.swift"))
@@ -115,11 +119,15 @@ final class TestDiscoveryTests: XCTestCase {
         TestItem(
           id: "MyTests",
           label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleXCTest,
           location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
           children: [
             TestItem(
               id: "MyTests/testMyLibrary()",
               label: "testMyLibrary()",
+              disabled: false,
+              style: TestItem.testStyleXCTest,
               location: Location(uri: try project.uri(for: "MyTests.swift"), range: positions["2️⃣"]..<positions["3️⃣"]),
               children: [],
               tags: []
@@ -141,6 +149,7 @@ final class TestDiscoveryTests: XCTestCase {
 
       1️⃣class MyTests: XCTestCase {
         2️⃣func testMyLibrary() {}3️⃣
+        func testWithAnArgument(x: Int) {}
         func unrelatedFunc() {}
         var testVariable: Int = 0
       }4️⃣
@@ -155,11 +164,15 @@ final class TestDiscoveryTests: XCTestCase {
         TestItem(
           id: "MyTests",
           label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleXCTest,
           location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
           children: [
             TestItem(
               id: "MyTests/testMyLibrary()",
               label: "testMyLibrary()",
+              disabled: false,
+              style: TestItem.testStyleXCTest,
               location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
               children: [],
               tags: []
@@ -172,7 +185,7 @@ final class TestDiscoveryTests: XCTestCase {
   }
 
   func testDocumentTestsGetRefinedWithIndexedFile() async throws {
-    try SkipUnless.longTestsEnabled()
+    // try SkipUnless.longTestsEnabled()
 
     let project = try await SwiftPMTestProject(
       files: [
@@ -213,11 +226,15 @@ final class TestDiscoveryTests: XCTestCase {
         TestItem(
           id: "MyTests",
           label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleXCTest,
           location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
           children: [
             TestItem(
               id: "MyTests/testMyLibrary()",
               label: "testMyLibrary()",
+              disabled: false,
+              style: TestItem.testStyleXCTest,
               location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
               children: [],
               tags: []
@@ -235,5 +252,585 @@ final class TestDiscoveryTests: XCTestCase {
       DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri))
     )
     XCTAssertEqual(indexBasedTests, [])
+  }
+
+  func testSwiftTestingDocumentTests() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣struct MyTests {
+        2️⃣@Test
+        func oneIsTwo() {
+          #expect(1 == 2)
+        }3️⃣
+      }4️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/oneIsTwo()",
+              label: "oneIsTwo()",
+              disabled: false,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
+            )
+          ],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testNestedSwiftTestingSuites() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣struct MyTests {
+        2️⃣struct Inner {
+          3️⃣@Test
+          func oneIsTwo() {
+            #expect(1 == 2)
+          }4️⃣
+        }5️⃣
+      }6️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["6️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/Inner",
+              label: "Inner",
+              disabled: false,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["5️⃣"]),
+              children: [
+                TestItem(
+                  id: "MyTests/Inner/oneIsTwo()",
+                  label: "oneIsTwo()",
+                  disabled: false,
+                  style: TestItem.testStyleSwiftTesting,
+                  location: Location(uri: uri, range: positions["3️⃣"]..<positions["4️⃣"]),
+                  children: [],
+                  tags: []
+                )
+              ],
+              tags: []
+            )
+          ],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testParameterizedSwiftTestingTest() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣struct MyTests {
+        2️⃣@Test(arguments: [0, 1, 2])
+        func numbersAreOne(x: Int) {
+          #expect(x == 1)
+        }3️⃣
+      }4️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/numbersAreOne(x:)",
+              label: "numbersAreOne(x:)",
+              disabled: false,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
+            )
+          ],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testSwiftTestingSuiteWithNoTests() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣@Suite
+      struct MyTests {
+      }2️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["2️⃣"]),
+          children: [],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testSwiftTestingSuiteWithCustomName() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣@Suite("My tests")
+      struct MyTests {
+      }2️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "My tests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["2️⃣"]),
+          children: [],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testSwiftTestingTestWithCustomName() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣@Test("One is two")
+      func oneIsTwo() {
+        #expect(1 == 2)
+      }2️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "oneIsTwo()",
+          label: "One is two",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["2️⃣"]),
+          children: [],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testDisabledSwiftTestingTest() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣@Test("One is two", .disabled())
+      func oneIsTwo() {
+        #expect(1 == 2)
+      }2️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "oneIsTwo()",
+          label: "One is two",
+          disabled: true,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["2️⃣"]),
+          children: [],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testSwiftTestingTestInDisabledSuite() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣@Suite(.disabled())
+      struct MyTests {
+        2️⃣@Test
+        func oneIsTwo() {
+          #expect(1 == 2)
+        }3️⃣
+      }4️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          disabled: true,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/oneIsTwo()",
+              label: "oneIsTwo()",
+              disabled: true,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
+            )
+          ],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testSwiftTestingTestWithTags() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣@Suite(.tags("Suites"))
+      struct MyTests {
+        2️⃣@Test(.tags("one", "two"))
+        func oneIsTwo() {
+          #expect(1 == 2)
+        }3️⃣
+      }4️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/oneIsTwo()",
+              label: "oneIsTwo()",
+              disabled: false,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: [TestTag(id: "one"), TestTag(id: "two")]
+            )
+          ],
+          tags: [TestTag(id: "Suites")]
+        )
+      ]
+    )
+  }
+
+  func testSwiftTestingTestsWithExtension() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣struct MyTests {
+        2️⃣@Test
+        func oneIsTwo() {
+          #expect(1 == 2)
+        }3️⃣
+      }4️⃣
+
+      5️⃣extension MyTests {
+        6️⃣@Test
+        func twoIsThree() {
+          #expect(2 == 3)
+        }7️⃣
+      }8️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/oneIsTwo()",
+              label: "oneIsTwo()",
+              disabled: false,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
+            )
+          ],
+          tags: []
+        ),
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["5️⃣"]..<positions["8️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/twoIsThree()",
+              label: "twoIsThree()",
+              disabled: false,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["6️⃣"]..<positions["7️⃣"]),
+              children: [],
+              tags: []
+            )
+          ],
+          tags: []
+        ),
+      ]
+    )
+  }
+
+  func testSwiftTestingExtensionOfTypeInAnotherFile() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣extension MyTests {
+        2️⃣@Test
+        func oneIsTwo() {
+          #expect(1 == 2)
+        }3️⃣
+      }4️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "MyTests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/oneIsTwo()",
+              label: "oneIsTwo()",
+              disabled: false,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
+            )
+          ],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testSwiftTestingExtensionOfNestedType() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      struct MyTests {
+        struct Inner {}
+      }
+
+      1️⃣extension MyTests.Inner {
+        2️⃣@Test
+        func oneIsTwo() {
+          #expect(1 == 2)
+        }3️⃣
+      }4️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests/Inner",
+          label: "Inner",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/Inner/oneIsTwo()",
+              label: "oneIsTwo()",
+              disabled: false,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
+            )
+          ],
+          tags: []
+        )
+      ]
+    )
+  }
+
+  func testFullyQualifySwiftTestingTestAttribute() async throws {
+    let testClient = try await TestSourceKitLSPClient()
+    let uri = DocumentURI.for(.swift)
+
+    let positions = testClient.openDocument(
+      """
+      import Testing
+
+      1️⃣@Testing.Suite("My Tests")
+      struct MyTests {
+        2️⃣@Testing.Test("one is two")
+        func oneIsTwo() {
+          #expect(1 == 2)
+        }3️⃣
+      }4️⃣
+      """,
+      uri: uri
+    )
+
+    let tests = try await testClient.send(DocumentTestsRequest(textDocument: TextDocumentIdentifier(uri)))
+    XCTAssertEqual(
+      tests,
+      [
+        TestItem(
+          id: "MyTests",
+          label: "My Tests",
+          disabled: false,
+          style: TestItem.testStyleSwiftTesting,
+          location: Location(uri: uri, range: positions["1️⃣"]..<positions["4️⃣"]),
+          children: [
+            TestItem(
+              id: "MyTests/oneIsTwo()",
+              label: "one is two",
+              disabled: false,
+              style: TestItem.testStyleSwiftTesting,
+              location: Location(uri: uri, range: positions["2️⃣"]..<positions["3️⃣"]),
+              children: [],
+              tags: []
+            )
+          ],
+          tags: []
+        )
+      ]
+    )
   }
 }

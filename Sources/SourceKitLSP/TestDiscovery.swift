@@ -93,6 +93,8 @@ extension SourceKitLSPServer {
       return TestItem(
         id: id,
         label: testSymbolOccurrence.symbol.name,
+        disabled: false,
+        style: TestItem.testStyleXCTest,
         location: location,
         children: children,
         tags: []
@@ -166,9 +168,6 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
   /// The workspace symbols representing the found `XCTestCase` subclasses and test methods.
   private var result: [TestItem] = []
 
-  /// Names of classes that are known to not inherit from `XCTestCase` and can thus be ruled out to be test classes.
-  private static let knownNonXCTestSubclasses = ["NSObject"]
-
   private init(snapshot: DocumentSnapshot) {
     self.snapshot = snapshot
     super.init(viewMode: .fixedUp)
@@ -216,6 +215,8 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
       return TestItem(
         id: "\(containerName)/\(function.name.text)()",
         label: "\(function.name.text)()",
+        disabled: false,
+        style: TestItem.testStyleXCTest,
         location: Location(uri: snapshot.uri, range: range),
         children: [],
         tags: []
@@ -229,16 +230,15 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
       // Continue scanning its children in case it has a nested subclass that inherits from XCTestCase.
       return .visitChildren
     }
-    if let superclassIdentifier = superclass.type.as(IdentifierTypeSyntax.self),
-      Self.knownNonXCTestSubclasses.contains(superclassIdentifier.name.text)
-    {
+    let superclassName = superclass.type.as(IdentifierTypeSyntax.self)?.name.text
+    if superclassName == "NSObject" {
       // We know that the class can't be an subclass of `XCTestCase` so don't visit it.
       // We can't explicitly check for the `XCTestCase` superclass because the class might inherit from a class that in
       // turn inherits from `XCTestCase`. Resolving that inheritance hierarchy would be semantic.
       return .visitChildren
     }
     let testMethods = findTestMethods(in: node.memberBlock.members, containerName: node.name.text)
-    guard !testMethods.isEmpty else {
+    guard !testMethods.isEmpty || superclassName == "XCTestCase" else {
       // Don't report a test class if it doesn't contain any test methods.
       return .visitChildren
     }
@@ -252,6 +252,8 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
     let testItem = TestItem(
       id: node.name.text,
       label: node.name.text,
+      disabled: false,
+      style: TestItem.testStyleXCTest,
       location: Location(uri: snapshot.uri, range: range),
       children: testMethods,
       tags: []
@@ -269,7 +271,15 @@ private final class SyntacticSwiftXCTestScanner: SyntaxVisitor {
 extension SwiftLanguageService {
   public func syntacticDocumentTests(for uri: DocumentURI) async throws -> [TestItem] {
     let snapshot = try documentManager.latestSnapshot(uri)
-    return await SyntacticSwiftXCTestScanner.findTestSymbols(in: snapshot, syntaxTreeManager: syntaxTreeManager)
+    let xctestSymbols = await SyntacticSwiftXCTestScanner.findTestSymbols(
+      in: snapshot,
+      syntaxTreeManager: syntaxTreeManager
+    )
+    let swiftTestingSymbols = await SyntacticSwiftTestingTestScanner.findTestSymbols(
+      in: snapshot,
+      syntaxTreeManager: syntaxTreeManager
+    )
+    return (xctestSymbols + swiftTestingSymbols).sorted { $0.location < $1.location }
   }
 }
 
