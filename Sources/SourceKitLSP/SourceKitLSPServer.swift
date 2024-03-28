@@ -1318,7 +1318,7 @@ extension SourceKitLSPServer {
       inlayHintProvider: inlayHintOptions,
       experimental: .dictionary([
         "workspace/tests": .dictionary(["version": .int(2)]),
-        "textDocument/tests": .dictionary(["version": .int(1)]),
+        "textDocument/tests": .dictionary(["version": .int(2)]),
       ])
     )
   }
