@@ -98,7 +98,7 @@ add_library(LanguageServerProtocol STATIC
   SupportTypes/CompletionItemKind.swift
   SupportTypes/Diagnostic.swift
   SupportTypes/DocumentURI.swift
-  SupportTypes/FileEvent.swift
+  SupportTypes/FileEvent.swift 
   SupportTypes/FileSystemWatcher.swift
   SupportTypes/FoldingRangeKind.swift
   SupportTypes/InlayHint.swift
@@ -124,6 +124,7 @@ add_library(LanguageServerProtocol STATIC
   SupportTypes/SKCompletionOptions.swift
   SupportTypes/StringOrMarkupContent.swift
   SupportTypes/SymbolKind.swift
+  SupportTypes/TestItem.swift
   SupportTypes/TextDocumentContentChangeEvent.swift
   SupportTypes/TextDocumentEdit.swift
   SupportTypes/TextDocumentIdentifier.swift

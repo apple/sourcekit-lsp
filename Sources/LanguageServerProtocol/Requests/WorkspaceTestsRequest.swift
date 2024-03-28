@@ -15,7 +15,7 @@
 /// **(LSP Extension)**
 public struct WorkspaceTestsRequest: RequestType, Hashable {
   public static let method: String = "workspace/tests"
-  public typealias Response = [WorkspaceSymbolItem]?
+  public typealias Response = [TestItem]
 
   public init() {}
 }
