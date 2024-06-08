@@ -1256,7 +1256,18 @@ extension SourceKitLSPServer {
   private func openDocument(_ notification: DidOpenTextDocumentNotification, workspace: Workspace) async {
     // Immediately open the document even if the build system isn't ready. This is important since
     // we check that the document is open when we receive messages from the build system.
-    documentManager.open(notification)
+    let snapshot = orLog("Opening document") {
+      try documentManager.open(
+        notification.textDocument.uri,
+        language: notification.textDocument.language,
+        version: notification.textDocument.version,
+        text: notification.textDocument.text
+      )
+    }
+    guard let snapshot else {
+      // Already logged failure
+      return
+    }
 
     let textDocument = notification.textDocument
     let uri = textDocument.uri
@@ -1270,7 +1281,7 @@ extension SourceKitLSPServer {
     await workspace.buildSystemManager.registerForChangeNotifications(for: uri, language: language)
 
     // If the document is ready, we can immediately send the notification.
-    await service.openDocument(notification)
+    await service.openDocument(notification, snapshot: snapshot)
   }
 
   func closeDocument(_ notification: DidCloseTextDocumentNotification) async {
@@ -1298,7 +1309,9 @@ extension SourceKitLSPServer {
   func closeDocument(_ notification: DidCloseTextDocumentNotification, workspace: Workspace) async {
     // Immediately close the document. We need to be sure to clear our pending work queue in case
     // the build system still isn't ready.
-    documentManager.close(notification)
+    orLog("failed to close document", level: .error) {
+      try documentManager.close(notification.textDocument.uri)
+    }
 
     let uri = notification.textDocument.uri
 
@@ -1319,8 +1332,23 @@ extension SourceKitLSPServer {
     await workspace.semanticIndexManager?.schedulePreparationForEditorFunctionality(of: uri)
 
     // If the document is ready, we can handle the change right now.
-    documentManager.edit(notification)
-    await workspace.documentService.value[uri]?.changeDocument(notification)
+    let editResult = orLog("Editing document") {
+      try documentManager.edit(
+        notification.textDocument.uri,
+        newVersion: notification.textDocument.version,
+        edits: notification.contentChanges
+      )
+    }
+    guard let (preEditSnapshot, postEditSnapshot, edits) = editResult else {
+      // Already logged failure
+      return
+    }
+    await workspace.documentService.value[uri]?.changeDocument(
+      notification,
+      preEditSnapshot: preEditSnapshot,
+      postEditSnapshot: postEditSnapshot,
+      edits: edits
+    )
   }
 
   func willSaveDocument(

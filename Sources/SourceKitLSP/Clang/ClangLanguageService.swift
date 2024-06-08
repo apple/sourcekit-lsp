@@ -17,6 +17,7 @@ import LanguageServerProtocolJSONRPC
 import SKCore
 import SKSupport
 import SwiftExtensions
+import SwiftSyntax
 
 import struct TSCBasic.AbsolutePath
 
@@ -443,7 +444,7 @@ extension ClangLanguageService {
 
   // MARK: - Text synchronization
 
-  public func openDocument(_ notification: DidOpenTextDocumentNotification) async {
+  public func openDocument(_ notification: DidOpenTextDocumentNotification, snapshot: DocumentSnapshot) async {
     openDocuments[notification.textDocument.uri] = notification.textDocument.language
     // Send clangd the build settings for the new file. We need to do this before
     // sending the open notification, so that the initial diagnostics already
@@ -459,7 +460,12 @@ extension ClangLanguageService {
 
   func reopenDocument(_ notification: ReopenTextDocumentNotification) {}
 
-  public func changeDocument(_ notification: DidChangeTextDocumentNotification) {
+  public func changeDocument(
+    _ notification: DidChangeTextDocumentNotification,
+    preEditSnapshot: DocumentSnapshot,
+    postEditSnapshot: DocumentSnapshot,
+    edits: [SourceEdit]
+  ) {
     clangd.send(notification)
   }
 

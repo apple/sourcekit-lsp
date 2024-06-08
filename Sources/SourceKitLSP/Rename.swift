@@ -345,7 +345,7 @@ extension SwiftLanguageService {
     in uri: DocumentURI,
     name: CompoundDeclName
   ) async throws -> String {
-    guard let snapshot = documentManager.latestSnapshotOrDisk(uri, language: .swift) else {
+    guard let snapshot = try? documentManager.latestSnapshotOrDisk(uri, language: .swift) else {
       throw ResponseError.unknown("Failed to get contents of \(uri.forLogging) to translate Swift name to clang name")
     }
 
