@@ -17,3 +17,4 @@ The following environment variables can be used to control some behavior in Sour
 - `SKIP_LONG_TESTS`: Skip tests that typically take more than 1s to execute.
 - `SOURCEKITLSP_KEEP_TEST_SCRATCH_DIR`: Does not delete the temporary files created during test execution. Allows inspection of the test projects after the test finishes.
 - `SOURCEKIT_LSP_TEST_MODULE_CACHE`: Specifies where tests should store their shared module cache. Defaults to writing the module cache to a temporary directory. Intended so that CI systems can clean the module cache directory after running.
+- `SOURCEKIT_LSP_SANITIZER_ENABLED`: Indicates that SourceKit-LSP was built with a sanitizer enabled. If this is the case, we can’t re-use the swift-syntax libraries for macro-related tests because the macros would need to be built with the same sanitizer arguments. Skip these tests.

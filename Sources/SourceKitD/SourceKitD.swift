@@ -99,10 +99,11 @@ extension SourceKitD {
   public func send(_ request: SKDRequestDictionary, fileContents: String?) async throws -> SKDResponseDictionary {
     log(request: request)
 
-    let sourcekitdResponse: SKDResponse = try await withCancellableCheckedThrowingContinuation { continuation in
+    let rawSourcekitdResponse: sourcekitd_api_response_t = try await withCancellableCheckedThrowingContinuation {
+      continuation in
       var handle: sourcekitd_api_request_handle_t? = nil
       api.send_request(request.dict, &handle) { response in
-        continuation.resume(returning: SKDResponse(response!, sourcekitd: self))
+        continuation.resume(returning: response!)
       }
       return handle
     } cancel: { handle in
@@ -111,6 +112,7 @@ extension SourceKitD {
         api.cancel_request(handle)
       }
     }
+    let sourcekitdResponse = SKDResponse(rawSourcekitdResponse, sourcekitd: self)
 
     log(response: sourcekitdResponse)
 

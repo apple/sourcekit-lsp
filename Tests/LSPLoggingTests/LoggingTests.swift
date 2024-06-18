@@ -12,6 +12,7 @@
 
 @_spi(Testing) import LSPLogging
 import SKTestSupport
+import SwiftExtensions
 import XCTest
 
 fileprivate func assertLogging(
@@ -73,22 +74,22 @@ final class LoggingTests: XCTestCase {
   func testLoggingFormat() async throws {
     let expectation = self.expectation(description: "message logged")
     // nonisolated(unsafe) because we only have a single call to `logger.log` and that cannot race.
-    nonisolated(unsafe) var message: String = ""
+    let message = ThreadSafeBox<String>(initialValue: "")
     let logger = NonDarwinLogger(
       subsystem: LoggingScope.subsystem,
       category: "test",
       overrideLogHandler: {
-        message = $0
+        message.value = $0
         expectation.fulfill()
       }
     )
     logger.log(level: .error, "my message")
     try await fulfillmentOfOrThrow([expectation])
     XCTAssert(
-      message.starts(with: "[org.swift.sourcekit-lsp:test] error"),
+      message.value.starts(with: "[org.swift.sourcekit-lsp:test] error"),
       "Message did not have expected header. Received \n\(message)"
     )
-    XCTAssert(message.hasSuffix("\nmy message\n---"), "Message did not have expected body. Received \n\(message)")
+    XCTAssert(message.value.hasSuffix("\nmy message\n---"), "Message did not have expected body. Received \n\(message)")
   }
 
   func testLoggingBasic() async {

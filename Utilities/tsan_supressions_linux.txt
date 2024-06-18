@@ -1,0 +1,2 @@
+# https://github.com/apple/sourcekit-lsp/issues/1456
+thread:IndexStoreDB::index::IndexSystem::create

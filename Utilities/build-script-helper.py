@@ -15,10 +15,17 @@ from typing import Dict, List
 # General utilities
 
 
-def fatal_error(message):
+def fatal_error(message: str):
     print(message, file=sys.stderr)
     raise SystemExit(1)
 
+def print_and_flush(message: str):
+    """
+    Flush stdout after printing the message. If we don't flush, we can get out-of-order messages with commands that
+    write to stdout.
+    """
+    print(message)
+    sys.stdout.flush()
 
 def escapeCmdArg(arg: str) -> str:
     if '"' in arg or " " in arg:
@@ -30,7 +37,7 @@ def escapeCmdArg(arg: str) -> str:
 def print_cmd(cmd: List[str], additional_env: Dict[str, str]) -> None:
     env_str = " ".join([f"{key}={escapeCmdArg(str(value))}" for (key, value) in additional_env.items()])
     command_str = " ".join([escapeCmdArg(str(arg)) for arg in cmd])
-    print(f"{env_str} {command_str}")
+    print_and_flush(f"{env_str} {command_str}")
 
 
 def env_with_additional_env(additional_env: Dict[str, str]) -> Dict[str, str]:
@@ -86,6 +93,7 @@ def get_build_target(swift_exec: str, args: argparse.Namespace, cross_compile: b
             return 'x86_64-apple-macosx'
         else:
             fatal_error(str(e))
+            return ''
 
 # -----------------------------------------------------------------------------
 # Build SourceKit-LSP
@@ -98,7 +106,9 @@ def get_swiftpm_options(swift_exec: str, args: argparse.Namespace, suppress_verb
         '--configuration', args.configuration,
     ]
 
-    if args.multiroot_data_file:
+    if args.multiroot_data_file and not args.sanitize:
+        # Don't use a multiroot data file when we're running a sanitizer because we don't have all the dependent
+        # packages pre-built for the sanitizer configuration, so there are no build products we can re-use.
         swiftpm_args += ['--multiroot-data-file', args.multiroot_data_file]
 
     if args.verbose and not suppress_verbose:
@@ -146,7 +156,7 @@ def get_swiftpm_options(swift_exec: str, args: argparse.Namespace, suppress_verb
         if build_os.startswith('macosx') and args.cross_compile_host.startswith('macosx-'):
             swiftpm_args += ["--arch", "x86_64", "--arch", "arm64"]
         elif args.cross_compile_host.startswith('android-'):
-            print('Cross-compiling for %s' % args.cross_compile_host)
+            print_and_flush('Cross-compiling for %s' % args.cross_compile_host)
             swiftpm_args += ['--destination', args.cross_compile_config]
         else:
             fatal_error("cannot cross-compile for %s" % args.cross_compile_host)
@@ -163,24 +173,28 @@ def get_swiftpm_environment_variables(swift_exec: str, args: argparse.Namespace)
     env = {
         # Set the toolchain used in tests at runtime
         'SOURCEKIT_TOOLCHAIN_PATH': args.toolchain,
-        'INDEXSTOREDB_TOOLCHAIN_BIN_PATH': args.toolchain,
-        'SWIFT_EXEC': f'{swift_exec}c'
     }
     # Use local dependencies (i.e. checked out next sourcekit-lsp).
     if not args.no_local_deps:
         env['SWIFTCI_USE_LOCAL_DEPS'] = "1"
 
-    if args.ninja_bin:
-        env['NINJA_BIN'] = args.ninja_bin
-
+    if args.sanitize:
+        env['SOURCEKIT_LSP_SANITIZER_ENABLED'] = '1'
     if args.sanitize and 'address' in args.sanitize:
-        # Workaround reports in Foundation: https://bugs.swift.org/browse/SR-12551
-        env['ASAN_OPTIONS'] = 'detect_leaks=false'
+        asan_options = ['halt_on_error=true', 'detect_leaks=false']
+        env['ASAN_OPTIONS'] = ','.join(asan_options)
     if args.sanitize and 'undefined' in args.sanitize:
-        supp = os.path.join(args.package_path, 'Utilities', 'ubsan_supressions.supp')
-        env['UBSAN_OPTIONS'] = 'halt_on_error=true,suppressions=%s' % supp
+        ubsan_options = ['halt_on_error=true']
+        if platform.system() == 'Darwin':
+            suppressions_file = os.path.join(args.package_path, 'Utilities', f'ubsan_supressions_macos.txt')
+            ubsan_options.append(f'suppressions={suppressions_file}')
+        env['UBSAN_OPTIONS'] = ','.join(ubsan_options)
     if args.sanitize and 'thread' in args.sanitize:
-        env['TSAN_OPTIONS'] = 'halt_on_error=true'
+        tsan_options = ['halt_on_error=true']
+        if platform.system() == 'Linux':
+            suppressions_file = os.path.join(args.package_path, 'Utilities', f'tsan_supressions_linux.txt')
+            tsan_options.append(f'suppressions={suppressions_file}')
+        env['TSAN_OPTIONS'] = ','.join(tsan_options)
 
     if args.action == 'test' and args.skip_long_tests:
         env['SKIP_LONG_TESTS'] = '1'
@@ -220,7 +234,7 @@ def run_tests(swift_exec: str, args: argparse.Namespace) -> None:
 
     bin_path = swiftpm_bin_path(swift_exec, swiftpm_args, additional_env=additional_env)
     tests = os.path.join(bin_path, 'sk-tests')
-    print('Cleaning ' + tests)
+    print_and_flush('Cleaning ' + tests)
     shutil.rmtree(tests, ignore_errors=True)
 
     cmd = [
@@ -235,8 +249,7 @@ def run_tests(swift_exec: str, args: argparse.Namespace) -> None:
         try:
             check_call(cmd + ['--parallel'], additional_env=additional_env, verbose=args.verbose)
         except:
-            print('--- Running tests in parallel failed. Re-running tests serially to capture more actionable output.')
-            sys.stdout.flush()
+            print_and_flush('--- Running tests in parallel failed. Re-running tests serially to capture more actionable output.')
             check_call(cmd, additional_env=additional_env, verbose=args.verbose)
             # Return with non-zero exit code even if serial test execution succeeds.
             raise SystemExit(1)
@@ -281,6 +294,7 @@ def parse_args() -> argparse.Namespace:
     def add_common_args(parser: argparse.ArgumentParser) -> None:
         parser.add_argument('--package-path', metavar='PATH', help='directory of the package to build', default='.')
         parser.add_argument('--toolchain', required=True, metavar='PATH', help='build using the toolchain at PATH')
+        # FIXME: Remove the --ninja-bin parameter, it's unused
         parser.add_argument('--ninja-bin', metavar='PATH', help='ninja binary to use for testing')
         parser.add_argument('--build-path', metavar='PATH', default='.build', help='build in the given path')
         parser.add_argument('--configuration', '-c', default='debug', help='build using configuration (release|debug)')
@@ -339,19 +353,22 @@ def main() -> None:
     if args.sanitize_all:
         base = args.build_path
 
-        print('=== %s sourcekit-lsp with asan ===' % args.action)
-        args.sanitize = ['address']
-        args.build_path = os.path.join(base, 'test-asan')
-        handle_invocation(swift_exec, args)
+        if platform.system() != 'Darwin' and platform.system() != 'Linux':
+            # ASAN disabled on macOS because of rdar://128602427
+            # ASAN disabled on Linux because of https://github.com/apple/sourcekit-lsp/issues/1468
+            print_and_flush('=== %s sourcekit-lsp with asan ===' % args.action)
+            args.sanitize = ['address']
+            args.build_path = os.path.join(base, 'test-asan')
+            handle_invocation(swift_exec, args)
 
-        print('=== %s sourcekit-lsp with tsan ===' % args.action)
+        print_and_flush('=== %s sourcekit-lsp with tsan ===' % args.action)
         args.sanitize = ['thread']
         args.build_path = os.path.join(base, 'test-tsan')
         handle_invocation(swift_exec, args)
 
-        # Linux ubsan disabled: https://bugs.swift.org/browse/SR-12550
+        # Linux ubsan not supported: https://github.com/apple/swift/issues/54994
         if platform.system() != 'Linux':
-            print('=== %s sourcekit-lsp with ubsan ===' % args.action)
+            print_and_flush('=== %s sourcekit-lsp with ubsan ===' % args.action)
             args.sanitize = ['undefined']
             args.build_path = os.path.join(base, 'test-ubsan')
             handle_invocation(swift_exec, args)

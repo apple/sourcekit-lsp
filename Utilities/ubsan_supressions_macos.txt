@@ -1,0 +1,8 @@
+# https://github.com/apple/sourcekit-lsp/issues/1458
+alignment:mdb.c
+
+# https://github.com/apple/sourcekit-lsp/issues/1457
+returns-nonnull-attribute:Allocator.h
+
+# https://github.com/apple/sourcekit-lsp/issues/1463
+function:ManagedStatic.cpp

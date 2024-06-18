@@ -23,7 +23,7 @@
 
 typedef void *sourcekitd_api_object_t;
 typedef struct sourcekitd_api_uid_s *sourcekitd_api_uid_t;
-typedef void *sourcekitd_api_response_t;
+typedef const void *sourcekitd_api_response_t;
 typedef const void *sourcekitd_api_request_handle_t;
 
 typedef struct {

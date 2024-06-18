@@ -431,6 +431,11 @@ public actor SkipUnless {
     file: StaticString = #filePath,
     line: UInt = #line
   ) async throws {
+    // If sanitizers are enabled, we can’t re-use the swift-syntax libraries for macro-related tests because the macros
+    // would need to be built with the same sanitizer arguments. Skip the test.
+    if ProcessEnv.block["SOURCEKIT_LSP_SANITIZER_ENABLED"] != nil {
+      throw XCTSkip("Skipping because SourceKit-LSP was built with sanitizers enabled")
+    }
     return try await shared.skipUnlessSupported(file: file, line: line) {
       do {
         let project = try await SwiftPMTestProject(
