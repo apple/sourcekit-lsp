@@ -251,10 +251,13 @@ final class SyntacticSwiftTestingTestScanner: SyntaxVisitor {
     let range = snapshot.absolutePositionRange(
       of: node.positionAfterSkippingLeadingTrivia..<node.endPositionBeforeTrailingTrivia
     )
+
+    let location = location(range: range)
+
     // Members won't be extensions since extensions will only be at the top level.
     let testItem = AnnotatedTestItem(
       testItem: TestItem(
-        id: (parentTypeNames + typeNames).joined(separator: "/"),
+        id: (parentTypeNames + typeNames + [location]).joined(separator: "/"),
         label: attributeData?.displayName ?? typeNames.last!,
         disabled: (attributeData?.isDisabled ?? false) || allTestsDisabled,
         style: TestStyle.swiftTesting,
@@ -325,9 +328,12 @@ final class SyntacticSwiftTestingTestScanner: SyntaxVisitor {
     let range = snapshot.absolutePositionRange(
       of: node.positionAfterSkippingLeadingTrivia..<node.endPositionBeforeTrailingTrivia
     )
+
+    let location = location(range: range)
+
     let testItem = AnnotatedTestItem(
       testItem: TestItem(
-        id: (parentTypeNames + [name]).joined(separator: "/"),
+        id: (parentTypeNames + [name] + [location]).joined(separator: "/"),
         label: attributeData.displayName ?? name,
         disabled: attributeData.isDisabled || allTestsDisabled,
         style: TestStyle.swiftTesting,
@@ -339,6 +345,20 @@ final class SyntacticSwiftTestingTestScanner: SyntaxVisitor {
     )
     result.append(testItem)
     return .visitChildren
+  }
+
+  private func location(range: Range<Position>) -> String {
+    let fileName = snapshot.uri.fileURL?.lastPathComponent
+    let locations: [String?] = [
+      fileName,
+      range.lowerBound.line.description,
+      range.lowerBound.utf16index.description,
+    ]
+
+    return
+      locations
+      .compactMap { $0 }
+      .joined(separator: ":")
   }
 }
 
