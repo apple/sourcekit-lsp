@@ -80,7 +80,7 @@ extension Array where Element == SemanticRefactorCommand {
     guard let results = array else {
       return nil
     }
-    var commands = [SemanticRefactorCommand]()
+    var commands: [SemanticRefactorCommand] = []
     results.forEach { _, value in
       if let name: String = value[keys.actionName],
         let actionuid: sourcekitd_api_uid_t = value[keys.actionUID],

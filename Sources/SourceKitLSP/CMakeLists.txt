@@ -47,7 +47,7 @@ target_sources(SourceKitLSP PRIVATE
   Swift/FoldingRange.swift
   Swift/MacroExpansion.swift
   Swift/OpenInterface.swift
-  Swift/Refactoring.swift
+  Swift/RefactoringResponse.swift
   Swift/RefactoringEdit.swift
   Swift/RefactorCommand.swift
   Swift/RelatedIdentifiers.swift

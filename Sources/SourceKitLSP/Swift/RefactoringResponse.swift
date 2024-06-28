@@ -33,7 +33,7 @@ extension RefactoringResponse {
       return nil
     }
 
-    var refactoringEdits = [RefactoringEdit]()
+    var refactoringEdits: [RefactoringEdit] = []
 
     categorizedEdits.forEach { _, categorizedEdit in
       guard let edits: SKDResponseArray = categorizedEdit[keys.edits] else {
