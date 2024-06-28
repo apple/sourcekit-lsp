@@ -95,7 +95,7 @@ extension SwiftLanguageService {
 
         // github permalink notation for position range
         let macroExpansionPositionRangeIndicator =
-          "L\(macroEdit.range.lowerBound.line)C\(macroEdit.range.lowerBound.utf16index)-L\(macroEdit.range.upperBound.line)C\(macroEdit.range.upperBound.utf16index)"
+          "L\(macroEdit.range.lowerBound.line + 1)C\(macroEdit.range.lowerBound.utf16index + 1)-L\(macroEdit.range.upperBound.line + 1)C\(macroEdit.range.upperBound.utf16index + 1)"
 
         let macroExpansionFilePath =
           macroExpansionBufferDirectoryURL
@@ -112,7 +112,7 @@ extension SwiftLanguageService {
         }
 
         Task {
-          let req = ShowDocumentRequest(uri: DocumentURI(macroExpansionFilePath), selection: macroEdit.range)
+          let req = ShowDocumentRequest(uri: DocumentURI(macroExpansionFilePath))
 
           let response = await orLog("Sending ShowDocumentRequest to Client") {
             try await sourceKitLSPServer.sendRequestToClient(req)
