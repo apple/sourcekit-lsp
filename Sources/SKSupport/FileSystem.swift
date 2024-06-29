@@ -31,7 +31,8 @@ extension AbsolutePath {
   }
 }
 
-/// The directory to write generated module interfaces
-public var defaultDirectoryForGeneratedInterfaces: AbsolutePath {
-  try! AbsolutePath(validating: NSTemporaryDirectory()).appending(component: "GeneratedInterfaces")
+/// The default directory to write generated files
+/// `<TEMPORARY_DIRECTORY>/sourcekit-lsp/`
+public var defaultDirectoryForGeneratedFiles: AbsolutePath {
+  try! AbsolutePath(validating: NSTemporaryDirectory()).appending(component: "sourcekit-lsp")
 }

@@ -23,7 +23,6 @@
 ///   - textDocument: The document to perform completion in.
 ///   - position: The location to perform completion at.
 ///   - context: Optional code-completion context.
-///   - sourcekitlspOptions: **(LSP Extension)** code-completion options for sourcekit-lsp.
 ///
 /// - Returns: A list of completion items to complete the code at the given position.
 public struct CompletionRequest: TextDocumentRequest, Hashable {
@@ -36,18 +35,14 @@ public struct CompletionRequest: TextDocumentRequest, Hashable {
 
   public var context: CompletionContext?
 
-  public var sourcekitlspOptions: SKCompletionOptions?
-
   public init(
     textDocument: TextDocumentIdentifier,
     position: Position,
-    context: CompletionContext? = nil,
-    sourcekitlspOptions: SKCompletionOptions? = nil
+    context: CompletionContext? = nil
   ) {
     self.textDocument = textDocument
     self.position = position
     self.context = context
-    self.sourcekitlspOptions = sourcekitlspOptions
   }
 }
 

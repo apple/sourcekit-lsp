@@ -21,7 +21,8 @@ import struct TSCBasic.RelativePath
 /// Tries to create a build system for a workspace at the given location, with the given parameters.
 func createBuildSystem(
   rootUri: DocumentURI,
-  options: SourceKitLSPServer.Options,
+  options: SourceKitLSPOptions,
+  testHooks: TestHooks,
   toolchainRegistry: ToolchainRegistry,
   reloadPackageStatusCallback: @Sendable @escaping (ReloadPackageStatus) async -> Void
 ) async -> BuildSystem? {
@@ -37,26 +38,25 @@ func createBuildSystem(
     return await SwiftPMBuildSystem(
       uri: rootUri,
       toolchainRegistry: toolchainRegistry,
-      buildSetup: options.buildSetup,
-      experimentalFeatures: options.experimentalFeatures,
+      options: options,
       reloadPackageStatusCallback: reloadPackageStatusCallback,
-      testHooks: options.swiftpmTestHooks
+      testHooks: testHooks.swiftpmTestHooks
     )
   }
 
   func createCompilationDatabaseBuildSystem(rootPath: AbsolutePath) -> CompilationDatabaseBuildSystem? {
     return CompilationDatabaseBuildSystem(
       projectRoot: rootPath,
-      searchPaths: options.compilationDatabaseSearchPaths
+      searchPaths: (options.compilationDatabase.searchPaths ?? []).compactMap { try? RelativePath(validating: $0) }
     )
   }
 
   func createBuildServerBuildSystem(rootPath: AbsolutePath) async -> BuildServerBuildSystem? {
-    return await BuildServerBuildSystem(projectRoot: rootPath, buildSetup: options.buildSetup)
+    return await BuildServerBuildSystem(projectRoot: rootPath)
   }
 
   let defaultBuildSystem: BuildSystem? =
-    switch options.buildSetup.defaultWorkspaceType {
+    switch options.defaultWorkspaceType {
     case .buildServer: await createBuildServerBuildSystem(rootPath: rootPath)
     case .compilationDatabase: createCompilationDatabaseBuildSystem(rootPath: rootPath)
     case .swiftPM: await createSwiftPMBuildSystem(rootUri: rootUri)

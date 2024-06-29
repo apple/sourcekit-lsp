@@ -26,7 +26,8 @@ public final class InProcessSourceKitLSPClient: Sendable {
   /// `messageHandler` handles notifications and requests sent from the SourceKit-LSP server to the client.
   public init(
     toolchainRegistry: ToolchainRegistry,
-    serverOptions: SourceKitLSPServer.Options = SourceKitLSPServer.Options(),
+    options: SourceKitLSPOptions = SourceKitLSPOptions(),
+    testHooks: TestHooks = TestHooks(),
     capabilities: ClientCapabilities = ClientCapabilities(),
     workspaceFolders: [WorkspaceFolder],
     messageHandler: any MessageHandler
@@ -35,7 +36,8 @@ public final class InProcessSourceKitLSPClient: Sendable {
     self.server = SourceKitLSPServer(
       client: serverToClientConnection,
       toolchainRegistry: toolchainRegistry,
-      options: serverOptions,
+      options: options,
+      testHooks: testHooks,
       onExit: {
         serverToClientConnection.close()
       }

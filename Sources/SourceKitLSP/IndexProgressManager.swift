@@ -128,7 +128,7 @@ actor IndexProgressManager {
       workDoneProgress = await WorkDoneProgressManager(
         server: sourceKitLSPServer,
         tokenPrefix: "indexing",
-        initialDebounce: sourceKitLSPServer.options.workDoneProgressDebounceDuration,
+        initialDebounce: sourceKitLSPServer.options.workDoneProgressDebounceDurationOrDefault,
         title: "Indexing",
         message: message,
         percentage: percentage

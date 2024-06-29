@@ -120,7 +120,7 @@ struct SourceKitLSP: AsyncParsableCommand {
     name: [.long, .customLong("build-path")],
     help: "Specify build/cache directory (--build-path option is deprecated, --scratch-path should be used instead)"
   )
-  var scratchPath: AbsolutePath?
+  var scratchPath: String?
 
   @Option(
     name: .customLong("Xcc", withSingleDash: true),
@@ -161,13 +161,13 @@ struct SourceKitLSP: AsyncParsableCommand {
     name: .customLong("index-store-path", withSingleDash: true),
     help: "Override index-store-path from the build system"
   )
-  var indexStorePath: AbsolutePath?
+  var indexStorePath: String?
 
   @Option(
     name: .customLong("index-db-path", withSingleDash: true),
     help: "Override index-database-path from the build system"
   )
-  var indexDatabasePath: AbsolutePath?
+  var indexDatabasePath: String?
 
   @Option(
     name: .customLong("index-prefix-map", withSingleDash: true),
@@ -187,12 +187,12 @@ struct SourceKitLSP: AsyncParsableCommand {
     help:
       "Specify a relative path where sourcekit-lsp should search for `compile_commands.json` or `compile_flags.txt` relative to the root of a workspace. Multiple search paths may be specified by repeating this option."
   )
-  var compilationDatabaseSearchPaths = [RelativePath]()
+  var compilationDatabaseSearchPaths = [String]()
 
   @Option(
-    help: "Specify the directory where generated interfaces will be stored"
+    help: "Specify the directory where generated files will be stored"
   )
-  var generatedInterfacesPath = defaultDirectoryForGeneratedInterfaces
+  var generatedFilesPath: String = defaultDirectoryForGeneratedFiles.pathString
 
   @Option(
     name: .customLong("experimental-feature"),
@@ -201,37 +201,75 @@ struct SourceKitLSP: AsyncParsableCommand {
       Available features are: \(ExperimentalFeature.allCases.map(\.rawValue).joined(separator: ", "))
       """
   )
-  var experimentalFeatures: [ExperimentalFeature] = []
+  var experimentalFeatures: [String] = []
 
-  // MARK: Configuration options intended for SourceKit-LSP developers.
+  /// Maps The options passed on the command line to a `SourceKitLSPOptions` struct.
+  func commandLineOptions() -> SourceKitLSPOptions {
+    return SourceKitLSPOptions(
+      swiftPM: SourceKitLSPOptions.SwiftPMOptions(
+        configuration: buildConfiguration,
+        scratchPath: scratchPath,
+        cCompilerFlags: buildFlagsCc,
+        cxxCompilerFlags: buildFlagsCxx,
+        swiftCompilerFlags: buildFlagsSwift,
+        linkerFlags: buildFlagsLinker
+      ),
+      fallbackBuildSystem: SourceKitLSPOptions.FallbackBuildSystemOptions(
+        cCompilerFlags: buildFlagsCc,
+        cxxCompilerFlags: buildFlagsCxx,
+        swiftCompilerFlags: buildFlagsSwift
+      ),
+      compilationDatabase: SourceKitLSPOptions.CompilationDatabaseOptions(searchPaths: compilationDatabaseSearchPaths),
+      clangdOptions: clangdOptions,
+      index: SourceKitLSPOptions.IndexOptions(
+        indexStorePath: indexStorePath,
+        indexDatabasePath: indexDatabasePath,
+        indexPrefixMap: [String: String](
+          indexPrefixMappings.map { ($0.original, $0.replacement) },
+          uniquingKeysWith: { lhs, rhs in rhs }
+        ),
+        maxCoresPercentageToUseForBackgroundIndexing: nil,
+        updateIndexStoreTimeout: nil
+      ),
+      defaultWorkspaceType: defaultWorkspaceType,
+      generatedFilesPath: generatedFilesPath,
+      backgroundIndexing: experimentalFeatures.contains("background-indexing"),
+      experimentalFeatures: Set(experimentalFeatures.compactMap(ExperimentalFeature.init))
+    )
+  }
 
-  @Option(help: .hidden)
-  var completionMaxResults = 200
-
-  @Option(name: .customLong("progress-debounce-duration"), help: .hidden)
-  var workDoneProgressDebounceDuration: Int = 1_000
-
-  func mapOptions() -> SourceKitLSPServer.Options {
-    var serverOptions = SourceKitLSPServer.Options()
-
-    serverOptions.buildSetup.configuration = buildConfiguration
-    serverOptions.buildSetup.defaultWorkspaceType = defaultWorkspaceType
-    serverOptions.buildSetup.path = scratchPath
-    serverOptions.buildSetup.flags.cCompilerFlags = buildFlagsCc
-    serverOptions.buildSetup.flags.cxxCompilerFlags = buildFlagsCxx
-    serverOptions.buildSetup.flags.linkerFlags = buildFlagsLinker
-    serverOptions.buildSetup.flags.swiftCompilerFlags = buildFlagsSwift
-    serverOptions.clangdOptions = clangdOptions
-    serverOptions.compilationDatabaseSearchPaths = compilationDatabaseSearchPaths
-    serverOptions.indexOptions.indexStorePath = indexStorePath
-    serverOptions.indexOptions.indexDatabasePath = indexDatabasePath
-    serverOptions.indexOptions.indexPrefixMappings = indexPrefixMappings
-    serverOptions.generatedInterfacesPath = generatedInterfacesPath
-    serverOptions.experimentalFeatures = Set(experimentalFeatures)
-    serverOptions.completionOptions.maxResults = completionMaxResults
-    serverOptions.workDoneProgressDebounceDuration = .milliseconds(workDoneProgressDebounceDuration)
-
-    return serverOptions
+  var globalConfigurationOptions: SourceKitLSPOptions {
+    var options = SourceKitLSPOptions.merging(
+      base: commandLineOptions(),
+      override: SourceKitLSPOptions(
+        path: URL(fileURLWithPath: ("~/.sourcekit-lsp/config.json" as NSString).expandingTildeInPath)
+      )
+    )
+    #if canImport(Darwin)
+    for applicationSupportDir in FileManager.default.urls(for: .applicationSupportDirectory, in: [.allDomainsMask]) {
+      options = SourceKitLSPOptions.merging(
+        base: options,
+        override: SourceKitLSPOptions(
+          path:
+            applicationSupportDir
+            .appendingPathComponent("org.swift.sourcekit-lsp")
+            .appendingPathComponent("config.json")
+        )
+      )
+    }
+    #endif
+    if let xdgConfigHome = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] {
+      options = SourceKitLSPOptions.merging(
+        base: options,
+        override: SourceKitLSPOptions(
+          path:
+            URL(fileURLWithPath: xdgConfigHome)
+            .appendingPathComponent("sourcekit-lsp")
+            .appendingPathComponent("config.json")
+        )
+      )
+    }
+    return options
   }
 
   func run() async throws {
@@ -268,7 +306,8 @@ struct SourceKitLSP: AsyncParsableCommand {
     let server = SourceKitLSPServer(
       client: clientConnection,
       toolchainRegistry: ToolchainRegistry(installPath: installPath, localFileSystem),
-      options: mapOptions(),
+      options: globalConfigurationOptions,
+      testHooks: TestHooks(),
       onExit: {
         clientConnection.close()
       }

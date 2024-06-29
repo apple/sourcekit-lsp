@@ -241,4 +241,55 @@ final class SwiftPMIntegrationTests: XCTestCase {
       ]
     )
   }
+
+  func testWasm() async throws {
+    try await SkipUnless.canCompileForWasm()
+
+    let project = try await SwiftPMTestProject(
+      files: [
+        "/.sourcekit-lsp/config.json": """
+        {
+          "swiftPM": {
+            "triple": "wasm32-unknown-none-wasm"
+          }
+        }
+        """,
+        "Test.swift": """
+        #if arch(wasm32)
+        let _: UnsafeRawPointer = 1
+        #endif
+        """,
+      ],
+      manifest: """
+        let package = Package(
+          name: "WasmTest",
+          targets: [
+            .executableTarget(
+              name: "wasmTest",
+              cSettings: [.unsafeFlags(["-fdeclspec"])],
+              swiftSettings: [
+                .enableExperimentalFeature("Embedded"),
+                .interoperabilityMode(.Cxx),
+                .unsafeFlags(["-wmo", "-disable-cmo", "-Xfrontend", "-gnone"]),
+              ],
+              linkerSettings: [.unsafeFlags(["-Xclang-linker", "-nostdlib", "-Xlinker", "--no-entry"])]
+            )
+          ]
+        )
+        """
+    )
+
+    let (uri, _) = try project.openDocument("Test.swift")
+    let diagnostics = try await project.testClient.send(
+      DocumentDiagnosticsRequest(textDocument: TextDocumentIdentifier(uri))
+    )
+    guard case .full(let diagnostics) = diagnostics else {
+      XCTFail("Expected full diagnostics report")
+      return
+    }
+    XCTAssertEqual(
+      diagnostics.items.map(\.message),
+      ["Cannot convert value of type 'Int' to specified type 'UnsafeRawPointer'"]
+    )
+  }
 }

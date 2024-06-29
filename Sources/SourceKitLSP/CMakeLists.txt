@@ -15,9 +15,9 @@ add_library(SourceKitLSP STATIC
   SourceKitIndexDelegate.swift
   SourceKitLSPCommandMetadata.swift
   SourceKitLSPServer.swift
-  SourceKitLSPServer+Options.swift
   SymbolLocation+DocumentURI.swift
   TestDiscovery.swift
+  TestHooks.swift
   TextEdit+IsNoop.swift
   WorkDoneProgressManager.swift
   Workspace.swift

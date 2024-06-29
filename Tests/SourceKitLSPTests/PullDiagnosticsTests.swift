@@ -260,8 +260,8 @@ final class PullDiagnosticsTests: XCTestCase {
 
   func testDiagnosticsWaitForDocumentToBePrepared() async throws {
     let diagnosticRequestSent = AtomicBool(initialValue: false)
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.indexTestHooks.preparationTaskDidStart = { @Sendable taskDescription in
+    var testHooks = TestHooks()
+    testHooks.indexTestHooks.preparationTaskDidStart = { @Sendable taskDescription in
       // Only start preparation after we sent the diagnostic request. In almost all cases, this should not give
       // preparation enough time to finish before the diagnostic request is handled unless we wait for preparation in
       // the diagnostic request.
@@ -297,7 +297,7 @@ final class PullDiagnosticsTests: XCTestCase {
           ]
         )
         """,
-      serverOptions: serverOptions,
+      testHooks: testHooks,
       enableBackgroundIndexing: true,
       pollIndex: false
     )
@@ -317,8 +317,8 @@ final class PullDiagnosticsTests: XCTestCase {
 
   func testDontReturnEmptyDiagnosticsIfDiagnosticRequestIsCancelled() async throws {
     let diagnosticRequestCancelled = self.expectation(description: "diagnostic request cancelled")
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.indexTestHooks.preparationTaskDidStart = { _ in
+    var testHooks = TestHooks()
+    testHooks.indexTestHooks.preparationTaskDidStart = { _ in
       await self.fulfillment(of: [diagnosticRequestCancelled], timeout: defaultTimeout)
       // Poll until the `CancelRequestNotification` has been propagated to the request handling.
       for _ in 0..<Int(defaultTimeout * 100) {
@@ -332,7 +332,7 @@ final class PullDiagnosticsTests: XCTestCase {
       files: [
         "Lib.swift": "let x: String = 1"
       ],
-      serverOptions: serverOptions,
+      testHooks: testHooks,
       enableBackgroundIndexing: true,
       pollIndex: false
     )

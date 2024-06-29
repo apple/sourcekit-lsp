@@ -130,8 +130,8 @@ public actor SwiftPMBuildSystem {
 
   private let workspacePath: TSCAbsolutePath
 
-  /// The build setup that allows the user to pass extra compiler flags.
-  private let buildSetup: BuildSetup
+  /// Options that allow the user to pass extra compiler flags.
+  private let options: SourceKitLSPOptions
 
   /// The directory containing `Package.swift`.
   @_spi(Testing)
@@ -175,12 +175,9 @@ public actor SwiftPMBuildSystem {
     logger.log(level: diagnostic.severity.asLogLevel, "SwiftPM log: \(diagnostic.description)")
   })
 
-  /// Whether to pass `--experimental-prepare-for-indexing` to `swift build` as part of preparation.
-  private let experimentalFeatures: Set<ExperimentalFeature>
-
   /// Whether the `SwiftPMBuildSystem` is pointed at a `.index-build` directory that's independent of the
   /// user's build.
-  private var isForIndexBuild: Bool { experimentalFeatures.contains(.backgroundIndexing) }
+  private var isForIndexBuild: Bool { options.backgroundIndexingOrDefault }
 
   private let testHooks: SwiftPMTestHooks
 
@@ -196,20 +193,18 @@ public actor SwiftPMBuildSystem {
     workspacePath: TSCAbsolutePath,
     toolchainRegistry: ToolchainRegistry,
     fileSystem: FileSystem = localFileSystem,
-    buildSetup: BuildSetup,
-    experimentalFeatures: Set<ExperimentalFeature>,
+    options: SourceKitLSPOptions,
     reloadPackageStatusCallback: @escaping (ReloadPackageStatus) async -> Void = { _ in },
     testHooks: SwiftPMTestHooks
   ) async throws {
     self.workspacePath = workspacePath
-    self.buildSetup = buildSetup
+    self.options = options
     self.fileSystem = fileSystem
     guard let toolchain = await preferredToolchain(toolchainRegistry) else {
       throw Error.cannotDetermineHostToolchain
     }
 
     self.toolchain = toolchain
-    self.experimentalFeatures = experimentalFeatures
     self.testHooks = testHooks
 
     guard let packageRoot = findPackageDirectory(containing: workspacePath, fileSystem) else {
@@ -222,17 +217,40 @@ public actor SwiftPMBuildSystem {
       throw Error.cannotDetermineHostToolchain
     }
 
-    let swiftSDK = try SwiftSDK.hostSwiftSDK(AbsolutePath(destinationToolchainBinDir))
-    let swiftPMToolchain = try UserToolchain(swiftSDK: swiftSDK)
+    let hostSDK = try SwiftSDK.hostSwiftSDK(AbsolutePath(destinationToolchainBinDir))
+    let hostSwiftPMToolchain = try UserToolchain(swiftSDK: hostSDK)
+
+    var destinationSDK: SwiftSDK
+    if let swiftSDK = options.swiftPM.swiftSDK {
+      let bundleStore = try SwiftSDKBundleStore(
+        swiftSDKsDirectory: fileSystem.getSharedSwiftSDKsDirectory(
+          explicitDirectory: options.swiftPM.swiftSDKsDirectory.map { try AbsolutePath(validating: $0) }
+        ),
+        fileSystem: fileSystem,
+        observabilityScope: observabilitySystem.topScope,
+        outputHandler: { _ in }
+      )
+      destinationSDK = try bundleStore.selectBundle(matching: swiftSDK, hostTriple: hostSwiftPMToolchain.targetTriple)
+    } else {
+      destinationSDK = hostSDK
+    }
+
+    if let triple = options.swiftPM.triple {
+      destinationSDK = hostSDK
+      destinationSDK.targetTriple = try Triple(triple)
+    }
+    let destinationSwiftPMToolchain = try UserToolchain(swiftSDK: destinationSDK)
 
     var location = try Workspace.Location(
       forRootPackage: AbsolutePath(packageRoot),
       fileSystem: fileSystem
     )
-    if experimentalFeatures.contains(.backgroundIndexing) {
+    if options.backgroundIndexingOrDefault {
       location.scratchDirectory = AbsolutePath(packageRoot.appending(component: ".index-build"))
-    } else if let scratchDirectory = buildSetup.path {
-      location.scratchDirectory = AbsolutePath(scratchDirectory)
+    } else if let scratchDirectory = options.swiftPM.scratchPath,
+      let scratchDirectoryPath = try? AbsolutePath(validating: scratchDirectory)
+    {
+      location.scratchDirectory = scratchDirectoryPath
     }
 
     var configuration = WorkspaceConfiguration.default
@@ -242,35 +260,43 @@ public actor SwiftPMBuildSystem {
       fileSystem: fileSystem,
       location: location,
       configuration: configuration,
-      customHostToolchain: swiftPMToolchain
+      customHostToolchain: hostSwiftPMToolchain
     )
 
     let buildConfiguration: PackageModel.BuildConfiguration
-    switch buildSetup.configuration {
+    switch options.swiftPM.configuration {
     case .debug, nil:
       buildConfiguration = .debug
     case .release:
       buildConfiguration = .release
     }
 
+    let buildFlags = BuildFlags(
+      cCompilerFlags: options.swiftPM.cCompilerFlags ?? [],
+      cxxCompilerFlags: options.swiftPM.cxxCompilerFlags ?? [],
+      swiftCompilerFlags: options.swiftPM.swiftCompilerFlags ?? [],
+      linkerFlags: options.swiftPM.linkerFlags ?? []
+    )
+
     self.toolsBuildParameters = try BuildParameters(
       destination: .host,
       dataPath: location.scratchDirectory.appending(
-        component: swiftPMToolchain.targetTriple.platformBuildPathComponent
+        component: hostSwiftPMToolchain.targetTriple.platformBuildPathComponent
       ),
       configuration: buildConfiguration,
-      toolchain: swiftPMToolchain,
-      flags: buildSetup.flags
+      toolchain: hostSwiftPMToolchain,
+      flags: buildFlags
     )
 
     self.destinationBuildParameters = try BuildParameters(
       destination: .target,
       dataPath: location.scratchDirectory.appending(
-        component: swiftPMToolchain.targetTriple.platformBuildPathComponent
+        component: destinationSwiftPMToolchain.targetTriple.platformBuildPathComponent
       ),
       configuration: buildConfiguration,
-      toolchain: swiftPMToolchain,
-      flags: buildSetup.flags
+      toolchain: destinationSwiftPMToolchain,
+      triple: destinationSDK.targetTriple,
+      flags: buildFlags
     )
 
     self.modulesGraph = try ModulesGraph(
@@ -303,8 +329,7 @@ public actor SwiftPMBuildSystem {
   public init?(
     uri: DocumentURI,
     toolchainRegistry: ToolchainRegistry,
-    buildSetup: BuildSetup,
-    experimentalFeatures: Set<ExperimentalFeature>,
+    options: SourceKitLSPOptions,
     reloadPackageStatusCallback: @escaping (ReloadPackageStatus) async -> Void,
     testHooks: SwiftPMTestHooks
   ) async {
@@ -316,8 +341,7 @@ public actor SwiftPMBuildSystem {
         workspacePath: try TSCAbsolutePath(validating: fileURL.path),
         toolchainRegistry: toolchainRegistry,
         fileSystem: localFileSystem,
-        buildSetup: buildSetup,
-        experimentalFeatures: experimentalFeatures,
+        options: options,
         reloadPackageStatusCallback: reloadPackageStatusCallback,
         testHooks: testHooks
       )
@@ -605,15 +629,14 @@ extension SwiftPMBuildSystem: SKCore.BuildSystem {
       "--disable-index-store",
       "--target", target.targetID,
     ]
-    if let configuration = buildSetup.configuration {
+    if let configuration = options.swiftPM.configuration {
       arguments += ["-c", configuration.rawValue]
     }
-    arguments += buildSetup.flags.cCompilerFlags.flatMap { ["-Xcc", $0] }
-    arguments += buildSetup.flags.cxxCompilerFlags.flatMap { ["-Xcxx", $0] }
-    arguments += buildSetup.flags.swiftCompilerFlags.flatMap { ["-Xswiftc", $0] }
-    arguments += buildSetup.flags.linkerFlags.flatMap { ["-Xlinker", $0] }
-    arguments += buildSetup.flags.xcbuildFlags?.flatMap { ["-Xxcbuild", $0] } ?? []
-    if experimentalFeatures.contains(.swiftpmPrepareForIndexing) {
+    arguments += options.swiftPM.cCompilerFlags?.flatMap { ["-Xcc", $0] } ?? []
+    arguments += options.swiftPM.cxxCompilerFlags?.flatMap { ["-Xcxx", $0] } ?? []
+    arguments += options.swiftPM.swiftCompilerFlags?.flatMap { ["-Xswiftc", $0] } ?? []
+    arguments += options.swiftPM.linkerFlags?.flatMap { ["-Xlinker", $0] } ?? []
+    if options.hasExperimentalFeature(.swiftpmPrepareForIndexing) {
       arguments.append("--experimental-prepare-for-indexing")
     }
     if Task.isCancelled {

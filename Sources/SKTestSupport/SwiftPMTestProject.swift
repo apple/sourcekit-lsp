@@ -150,8 +150,10 @@ public class SwiftPMTestProject: MultiFileTestProject {
     files: [RelativeFileLocation: String],
     manifest: String = SwiftPMTestProject.defaultPackageManifest,
     workspaces: (URL) async throws -> [WorkspaceFolder] = { [WorkspaceFolder(uri: DocumentURI($0))] },
+    initializationOptions: LSPAny? = nil,
     capabilities: ClientCapabilities = ClientCapabilities(),
-    serverOptions: SourceKitLSPServer.Options = .testDefault,
+    options: SourceKitLSPOptions = .testDefault(),
+    testHooks: TestHooks = TestHooks(),
     enableBackgroundIndexing: Bool = false,
     usePullDiagnostics: Bool = true,
     pollIndex: Bool = true,
@@ -163,7 +165,7 @@ public class SwiftPMTestProject: MultiFileTestProject {
     for (fileLocation, contents) in files {
       let directories =
         switch fileLocation.directories.first {
-        case "Sources", "Tests", "Plugins":
+        case "Sources", "Tests", "Plugins", "":
           fileLocation.directories
         case nil:
           ["Sources", "MyLibrary"]
@@ -189,8 +191,10 @@ public class SwiftPMTestProject: MultiFileTestProject {
     try await super.init(
       files: filesByPath,
       workspaces: workspaces,
+      initializationOptions: initializationOptions,
       capabilities: capabilities,
-      serverOptions: serverOptions,
+      options: options,
+      testHooks: testHooks,
       enableBackgroundIndexing: enableBackgroundIndexing,
       usePullDiagnostics: usePullDiagnostics,
       preInitialization: preInitialization,

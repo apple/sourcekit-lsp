@@ -35,14 +35,6 @@ final class SwiftCompletionTests: XCTestCase {
 
   // MARK: - Helpers
 
-  private func initializationOptions(for options: SKCompletionOptions) -> LSPAny? {
-    return LSPAny.dictionary([
-      "completion": .dictionary([
-        "maxResults": options.maxResults == nil ? .null : .int(options.maxResults!)
-      ])
-    ])
-  }
-
   private var snippetCapabilities = ClientCapabilities(
     textDocument: TextDocumentClientCapabilities(
       completion: TextDocumentClientCapabilities.Completion(
@@ -54,15 +46,15 @@ final class SwiftCompletionTests: XCTestCase {
   // MARK: - Tests
 
   func testCompletionServerFilter() async throws {
-    try await testCompletionBasic(options: SKCompletionOptions(maxResults: nil))
+    try await testCompletionBasic()
   }
 
   func testCompletionDefaultFilter() async throws {
-    try await testCompletionBasic(options: SKCompletionOptions())
+    try await testCompletionBasic()
   }
 
-  func testCompletionBasic(options: SKCompletionOptions) async throws {
-    let testClient = try await TestSourceKitLSPClient(initializationOptions: initializationOptions(for: options))
+  func testCompletionBasic() async throws {
+    let testClient = try await TestSourceKitLSPClient()
     let uri = DocumentURI(for: .swift)
 
     testClient.openDocument(text, uri: uri)
@@ -376,141 +368,8 @@ final class SwiftCompletionTests: XCTestCase {
     )
   }
 
-  func testMaxResults() async throws {
-    let testClient = try await TestSourceKitLSPClient()
-    let uri = DocumentURI(for: .swift)
-    testClient.openDocument(
-      """
-      struct S {
-        func f1() {}
-        func f2() {}
-        func f3() {}
-        func f4() {}
-        func f5() {}
-        func test() {
-          self.f
-        }
-      }
-      """,
-      uri: uri
-    )
-
-    // Server-wide option
-    assertEqual(
-      5,
-      countFs(
-        try await testClient.send(
-          CompletionRequest(
-            textDocument: TextDocumentIdentifier(uri),
-            position: Position(line: 7, utf16index: 9)
-          )
-        )
-      )
-    )
-
-    // Explicit option
-    assertEqual(
-      5,
-      countFs(
-        try await testClient.send(
-          CompletionRequest(
-            textDocument: TextDocumentIdentifier(uri),
-            position: Position(line: 7, utf16index: 9),
-            sourcekitlspOptions: SKCompletionOptions(maxResults: nil)
-          )
-        )
-      )
-    )
-
-    // MARK: Limited
-
-    assertEqual(
-      5,
-      countFs(
-        try await testClient.send(
-          CompletionRequest(
-            textDocument: TextDocumentIdentifier(uri),
-            position: Position(line: 7, utf16index: 9),
-            sourcekitlspOptions: SKCompletionOptions(maxResults: 1000)
-          )
-        )
-      )
-    )
-
-    assertEqual(
-      3,
-      countFs(
-        try await testClient.send(
-          CompletionRequest(
-            textDocument: TextDocumentIdentifier(uri),
-            position: Position(line: 7, utf16index: 9),
-            sourcekitlspOptions: SKCompletionOptions(maxResults: 3)
-          )
-        )
-      )
-    )
-    assertEqual(
-      1,
-      countFs(
-        try await testClient.send(
-          CompletionRequest(
-            textDocument: TextDocumentIdentifier(uri),
-            position: Position(line: 7, utf16index: 9),
-            sourcekitlspOptions: SKCompletionOptions(maxResults: 1)
-          )
-        )
-      )
-    )
-
-    // 0 also means unlimited
-    assertEqual(
-      5,
-      countFs(
-        try await testClient.send(
-          CompletionRequest(
-            textDocument: TextDocumentIdentifier(uri),
-            position: Position(line: 7, utf16index: 9),
-            sourcekitlspOptions: SKCompletionOptions(maxResults: 0)
-          )
-        )
-      )
-    )
-
-    // MARK: With filter='f'
-
-    assertEqual(
-      5,
-      countFs(
-        try await testClient.send(
-          CompletionRequest(
-            textDocument: TextDocumentIdentifier(uri),
-            position: Position(line: 7, utf16index: 10),
-            sourcekitlspOptions: SKCompletionOptions(maxResults: nil)
-          )
-        )
-      )
-    )
-    assertEqual(
-      3,
-      countFs(
-        try await testClient.send(
-          CompletionRequest(
-            textDocument: TextDocumentIdentifier(uri),
-            position: Position(line: 7, utf16index: 10),
-            sourcekitlspOptions: SKCompletionOptions(maxResults: 3)
-          )
-        )
-      )
-    )
-
-  }
-
   func testRefilterAfterIncompleteResults() async throws {
-    let testClient = try await TestSourceKitLSPClient(
-      initializationOptions: initializationOptions(
-        for: SKCompletionOptions(maxResults: 20)
-      )
-    )
+    let testClient = try await TestSourceKitLSPClient()
     let uri = DocumentURI(for: .swift)
     testClient.openDocument(
       """
@@ -615,9 +474,9 @@ final class SwiftCompletionTests: XCTestCase {
       )
     )
 
-    // Trigger kind changed => OK (20 is maxResults since we're outside the member completion)
+    // Trigger kind changed => OK (200 is maxResults since we're outside the member completion)
     assertEqual(
-      20,
+      200,
       try await testClient.send(
         CompletionRequest(
           textDocument: TextDocumentIdentifier(uri),

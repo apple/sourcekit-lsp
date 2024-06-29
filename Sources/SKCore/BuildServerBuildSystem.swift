@@ -45,7 +45,6 @@ func executable(_ name: String) -> String {
 /// `buildServer.json` configuration file provided in the repo root.
 public actor BuildServerBuildSystem: MessageHandler {
   public let projectRoot: AbsolutePath
-  let buildFolder: AbsolutePath?
   let serverConfig: BuildServerConfig
 
   var buildServer: JSONRPCConnection?
@@ -82,7 +81,6 @@ public actor BuildServerBuildSystem: MessageHandler {
 
   public init(
     projectRoot: AbsolutePath,
-    buildFolder: AbsolutePath?,
     fileSystem: FileSystem = localFileSystem
   ) async throws {
     let configPath = projectRoot.appending(component: "buildServer.json")
@@ -100,7 +98,6 @@ public actor BuildServerBuildSystem: MessageHandler {
         currentWorkingDirectory: fileSystem.currentWorkingDirectory
       )
     #endif
-    self.buildFolder = buildFolder
     self.projectRoot = projectRoot
     self.serverConfig = config
     try await self.initializeBuildServer()
@@ -109,11 +106,11 @@ public actor BuildServerBuildSystem: MessageHandler {
   /// Creates a build system using the Build Server Protocol config.
   ///
   /// - Returns: nil if `projectRoot` has no config or there is an error parsing it.
-  public init?(projectRoot: AbsolutePath?, buildSetup: BuildSetup) async {
-    if projectRoot == nil { return nil }
+  public init?(projectRoot: AbsolutePath?) async {
+    guard let projectRoot else { return nil }
 
     do {
-      try await self.init(projectRoot: projectRoot!, buildFolder: buildSetup.path)
+      try await self.init(projectRoot: projectRoot)
     } catch is FileSystemError {
       // config file was missing, no build server for this workspace
       return nil

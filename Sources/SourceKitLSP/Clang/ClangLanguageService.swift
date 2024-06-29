@@ -110,7 +110,8 @@ actor ClangLanguageService: LanguageService, MessageHandler {
   public init?(
     sourceKitLSPServer: SourceKitLSPServer,
     toolchain: Toolchain,
-    options: SourceKitLSPServer.Options,
+    options: SourceKitLSPOptions,
+    testHooks: TestHooks,
     workspace: Workspace
   ) async throws {
     guard let clangdPath = toolchain.clangd else {
@@ -118,7 +119,7 @@ actor ClangLanguageService: LanguageService, MessageHandler {
     }
     self.clangPath = toolchain.clang
     self.clangdPath = clangdPath
-    self.clangdOptions = options.clangdOptions
+    self.clangdOptions = options.clangdOptions ?? []
     self.workspace = WeakWorkspace(workspace)
     self.state = .connected
     self.sourceKitLSPServer = sourceKitLSPServer

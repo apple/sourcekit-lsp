@@ -462,6 +462,35 @@ public actor SkipUnless {
       }
     }
   }
+
+  public static func canCompileForWasm(
+    file: StaticString = #filePath,
+    line: UInt = #line
+  ) async throws {
+    return try await shared.skipUnlessSupportedByToolchain(swiftVersion: SwiftVersion(6, 0), file: file, line: line) {
+      let swiftFrontend = try await unwrap(ToolchainRegistry.forTesting.default?.swift).parentDirectory
+        .appending(component: "swift-frontend")
+      return try await withTestScratchDir { scratchDirectory in
+        let input = scratchDirectory.appending(component: "Input.swift")
+        FileManager.default.createFile(atPath: input.pathString, contents: nil)
+        // If we can't compile for wasm, this fails complaining that it can't find the stdlib for wasm.
+        let process = Process(
+          args: swiftFrontend.pathString,
+          "-typecheck",
+          input.pathString,
+          "-triple",
+          "wasm32-unknown-none-wasm",
+          "-enable-experimental-feature",
+          "Embedded",
+          "-Xcc",
+          "-fdeclspec"
+        )
+        try process.launch()
+        let result = try await process.waitUntilExit()
+        return result.exitStatus == .terminated(code: 0)
+      }
+    }
+  }
 }
 
 // MARK: - Parsing Swift compiler version

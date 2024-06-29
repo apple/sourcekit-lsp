@@ -723,46 +723,6 @@ final class WorkspaceTests: XCTestCase {
       ]
     )
   }
-
-  public func testWorkspaceSpecificBuildSettings() async throws {
-    let project = try await SwiftPMTestProject(
-      files: [
-        "test.swift": """
-        #if MY_FLAG
-        let a: Int = ""
-        #endif
-        """
-      ],
-      workspaces: {
-        [
-          WorkspaceFolder(
-            uri: DocumentURI($0),
-            buildSetup: WorkspaceBuildSetup(
-              buildConfiguration: nil,
-              scratchPath: nil,
-              cFlags: nil,
-              cxxFlags: nil,
-              linkerFlags: nil,
-              swiftFlags: ["-DMY_FLAG"]
-            )
-          )
-        ]
-      }
-    )
-
-    _ = try project.openDocument("test.swift")
-    let report = try await project.testClient.send(
-      DocumentDiagnosticsRequest(textDocument: TextDocumentIdentifier(project.uri(for: "test.swift")))
-    )
-    guard case .full(let fullReport) = report else {
-      XCTFail("Expected full diagnostics report")
-      return
-    }
-    XCTAssertEqual(fullReport.items.count, 1)
-    let diag = try XCTUnwrap(fullReport.items.first)
-    XCTAssertEqual(diag.message, "Cannot convert value of type 'String' to specified type 'Int'")
-  }
-
   func testIntegrationTest() async throws {
     // This test is doing the same as `test-sourcekit-lsp` in the `swift-integration-tests` repo.
 
@@ -869,5 +829,100 @@ final class WorkspaceTests: XCTestCase {
     )
     // rdar://73762053: This should also suggest clib_other
     XCTAssert(cCompletionResponse.items.contains(where: { $0.insertText == "clib_func" }))
+  }
+
+  func testWorkspaceOptions() async throws {
+    let project = try await SwiftPMTestProject(
+      files: [
+        "/.sourcekit-lsp/config.json": """
+        {
+          "swiftPM": {
+            "swiftCompilerFlags": ["-D", "TEST"]
+          }
+        }
+        """,
+        "Test.swift": """
+        func test() {
+        #if TEST
+          let x: String = 1
+        #endif
+        }
+        """,
+      ]
+    )
+
+    let (uri, _) = try project.openDocument("Test.swift")
+    let diagnostics = try await project.testClient.send(
+      DocumentDiagnosticsRequest(textDocument: TextDocumentIdentifier(uri))
+    )
+    guard case .full(let diagnostics) = diagnostics else {
+      XCTFail("Expected full diagnostics")
+      return
+    }
+    XCTAssertEqual(diagnostics.items.map(\.message), ["Cannot convert value of type 'Int' to specified type 'String'"])
+  }
+
+  func testOptionsInInitializeRequest() async throws {
+    let project = try await SwiftPMTestProject(
+      files: [
+        "Test.swift": """
+        func test() {
+        #if TEST
+          let x: String = 1
+        #endif
+        }
+        """
+      ],
+      initializationOptions: SourceKitLSPOptions(
+        swiftPM: SourceKitLSPOptions.SwiftPMOptions(swiftCompilerFlags: ["-D", "TEST"])
+      ).asLSPAny
+    )
+
+    let (uri, _) = try project.openDocument("Test.swift")
+    let diagnostics = try await project.testClient.send(
+      DocumentDiagnosticsRequest(textDocument: TextDocumentIdentifier(uri))
+    )
+    guard case .full(let diagnostics) = diagnostics else {
+      XCTFail("Expected full diagnostics")
+      return
+    }
+    XCTAssertEqual(diagnostics.items.map(\.message), ["Cannot convert value of type 'Int' to specified type 'String'"])
+  }
+
+  func testWorkspaceOptionsOverrideGlobalOptions() async throws {
+    let project = try await SwiftPMTestProject(
+      files: [
+        "/.sourcekit-lsp/config.json": """
+        {
+          "swiftPM": {
+            "swiftCompilerFlags": ["-D", "TEST"]
+          }
+        }
+        """,
+        "Test.swift": """
+        func test() {
+        #if TEST
+          let x: String = 1
+        #endif
+        #if OTHER
+          let x: String = 1.0
+        #endif
+        }
+        """,
+      ],
+      initializationOptions: SourceKitLSPOptions(
+        swiftPM: SourceKitLSPOptions.SwiftPMOptions(swiftCompilerFlags: ["-D", "OTHER"])
+      ).asLSPAny
+    )
+
+    let (uri, _) = try project.openDocument("Test.swift")
+    let diagnostics = try await project.testClient.send(
+      DocumentDiagnosticsRequest(textDocument: TextDocumentIdentifier(uri))
+    )
+    guard case .full(let diagnostics) = diagnostics else {
+      XCTFail("Expected full diagnostics")
+      return
+    }
+    XCTAssertEqual(diagnostics.items.map(\.message), ["Cannot convert value of type 'Int' to specified type 'String'"])
   }
 }

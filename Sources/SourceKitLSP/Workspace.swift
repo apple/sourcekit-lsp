@@ -57,8 +57,7 @@ public final class Workspace: Sendable {
   /// The build system manager to use for documents in this workspace.
   public let buildSystemManager: BuildSystemManager
 
-  /// Build setup
-  public let buildSetup: BuildSetup
+  let options: SourceKitLSPOptions
 
   /// The source code index, if available.
   ///
@@ -89,7 +88,8 @@ public final class Workspace: Sendable {
     rootUri: DocumentURI?,
     capabilityRegistry: CapabilityRegistry,
     toolchainRegistry: ToolchainRegistry,
-    options: SourceKitLSPServer.Options,
+    options: SourceKitLSPOptions,
+    testHooks: TestHooks,
     underlyingBuildSystem: BuildSystem?,
     index uncheckedIndex: UncheckedIndex?,
     indexDelegate: SourceKitIndexDelegate?,
@@ -99,25 +99,22 @@ public final class Workspace: Sendable {
     indexProgressStatusDidChange: @escaping @Sendable () -> Void
   ) async {
     self.documentManager = documentManager
-    self.buildSetup = options.buildSetup
     self.rootUri = rootUri
     self.capabilityRegistry = capabilityRegistry
+    self.options = options
     self._uncheckedIndex = ThreadSafeBox(initialValue: uncheckedIndex)
     self.buildSystemManager = await BuildSystemManager(
       buildSystem: underlyingBuildSystem,
-      fallbackBuildSystem: FallbackBuildSystem(buildSetup: buildSetup),
+      fallbackBuildSystem: FallbackBuildSystem(options: options.fallbackBuildSystem),
       mainFilesProvider: uncheckedIndex,
       toolchainRegistry: toolchainRegistry
     )
-    if options.experimentalFeatures.contains(.backgroundIndexing),
-      let uncheckedIndex,
-      await buildSystemManager.supportsPreparation
-    {
+    if options.backgroundIndexingOrDefault, let uncheckedIndex, await buildSystemManager.supportsPreparation {
       self.semanticIndexManager = SemanticIndexManager(
         index: uncheckedIndex,
         buildSystemManager: buildSystemManager,
-        updateIndexStoreTimeout: options.indexOptions.updateIndexStoreTimeout,
-        testHooks: options.indexTestHooks,
+        updateIndexStoreTimeout: options.index.updateIndexStoreTimeoutOrDefault,
+        testHooks: testHooks.indexTestHooks,
         indexTaskScheduler: indexTaskScheduler,
         logMessageToIndexLog: logMessageToIndexLog,
         indexTasksWereScheduled: indexTasksWereScheduled,
@@ -154,8 +151,8 @@ public final class Workspace: Sendable {
     capabilityRegistry: CapabilityRegistry,
     buildSystem: BuildSystem?,
     toolchainRegistry: ToolchainRegistry,
-    options: SourceKitLSPServer.Options,
-    indexOptions: IndexOptions = IndexOptions(),
+    options: SourceKitLSPOptions,
+    testHooks: TestHooks,
     indexTaskScheduler: TaskScheduler<AnyIndexTaskDescription>,
     logMessageToIndexLog: @escaping @Sendable (_ taskID: IndexTaskID, _ message: String) -> Void,
     indexTasksWereScheduled: @Sendable @escaping (Int) -> Void,
@@ -164,22 +161,30 @@ public final class Workspace: Sendable {
     var index: IndexStoreDB? = nil
     var indexDelegate: SourceKitIndexDelegate? = nil
 
-    let indexOptions = options.indexOptions
-    if let storePath = await firstNonNil(indexOptions.indexStorePath, await buildSystem?.indexStorePath),
-      let dbPath = await firstNonNil(indexOptions.indexDatabasePath, await buildSystem?.indexDatabasePath),
+    let indexOptions = options.index
+    if let storePath = await firstNonNil(
+      AbsolutePath(validatingOrNil: indexOptions.indexStorePath),
+      await buildSystem?.indexStorePath
+    ),
+      let dbPath = await firstNonNil(
+        AbsolutePath(validatingOrNil: indexOptions.indexDatabasePath),
+        await buildSystem?.indexDatabasePath
+      ),
       let libPath = await toolchainRegistry.default?.libIndexStore
     {
       do {
         let lib = try IndexStoreLibrary(dylibPath: libPath.pathString)
         indexDelegate = SourceKitIndexDelegate()
         let prefixMappings =
-          await firstNonNil(indexOptions.indexPrefixMappings, await buildSystem?.indexPrefixMappings) ?? []
+          await firstNonNil(
+            indexOptions.indexPrefixMap?.map { PathPrefixMapping(original: $0.key, replacement: $0.value) },
+            await buildSystem?.indexPrefixMappings
+          ) ?? []
         index = try IndexStoreDB(
           storePath: storePath.pathString,
           databasePath: dbPath.pathString,
           library: lib,
           delegate: indexDelegate,
-          listenToUnitEvents: indexOptions.listenToUnitEvents,
           prefixMappings: prefixMappings.map { PathMapping(original: $0.original, replacement: $0.replacement) }
         )
         logger.debug("Opened IndexStoreDB at \(dbPath) with store path \(storePath)")
@@ -194,6 +199,7 @@ public final class Workspace: Sendable {
       capabilityRegistry: capabilityRegistry,
       toolchainRegistry: toolchainRegistry,
       options: options,
+      testHooks: testHooks,
       underlyingBuildSystem: buildSystem,
       index: UncheckedIndex(index),
       indexDelegate: indexDelegate,
@@ -206,7 +212,8 @@ public final class Workspace: Sendable {
 
   @_spi(Testing) public static func forTesting(
     toolchainRegistry: ToolchainRegistry,
-    options: SourceKitLSPServer.Options,
+    options: SourceKitLSPOptions,
+    testHooks: TestHooks,
     underlyingBuildSystem: BuildSystem,
     indexTaskScheduler: TaskScheduler<AnyIndexTaskDescription>
   ) async -> Workspace {
@@ -216,6 +223,7 @@ public final class Workspace: Sendable {
       capabilityRegistry: CapabilityRegistry(clientCapabilities: ClientCapabilities()),
       toolchainRegistry: toolchainRegistry,
       options: options,
+      testHooks: testHooks,
       underlyingBuildSystem: underlyingBuildSystem,
       index: nil,
       indexDelegate: nil,
@@ -253,47 +261,5 @@ struct WeakWorkspace {
 
   init(_ value: Workspace? = nil) {
     self.value = value
-  }
-}
-
-public struct IndexOptions: Sendable {
-
-  /// Override the index-store-path provided by the build system.
-  public var indexStorePath: AbsolutePath?
-
-  /// Override the index-database-path provided by the build system.
-  public var indexDatabasePath: AbsolutePath?
-
-  /// Override the index prefix mappings provided by the build system.
-  public var indexPrefixMappings: [PathPrefixMapping]?
-
-  /// *For Testing* Whether the index should listen to unit events, or wait for
-  /// explicit calls to pollForUnitChangesAndWait().
-  public var listenToUnitEvents: Bool
-
-  /// The percentage of the machine's cores that should at most be used for background indexing.
-  ///
-  /// Setting this to a value < 1 ensures that background indexing doesn't use all CPU resources.
-  public var maxCoresPercentageToUseForBackgroundIndexing: Double
-
-  /// How long to wait until we cancel an update indexstore task. This timeout should be long enough that all
-  /// `swift-frontend` tasks finish within it. It prevents us from blocking the index if the type checker gets stuck on
-  /// an expression for a long time.
-  public var updateIndexStoreTimeout: Duration
-
-  public init(
-    indexStorePath: AbsolutePath? = nil,
-    indexDatabasePath: AbsolutePath? = nil,
-    indexPrefixMappings: [PathPrefixMapping]? = nil,
-    listenToUnitEvents: Bool = true,
-    maxCoresPercentageToUseForBackgroundIndexing: Double = 1,
-    updateIndexStoreTimeout: Duration = .seconds(120)
-  ) {
-    self.indexStorePath = indexStorePath
-    self.indexDatabasePath = indexDatabasePath
-    self.indexPrefixMappings = indexPrefixMappings
-    self.listenToUnitEvents = listenToUnitEvents
-    self.maxCoresPercentageToUseForBackgroundIndexing = maxCoresPercentageToUseForBackgroundIndexing
-    self.updateIndexStoreTimeout = updateIndexStoreTimeout
   }
 }

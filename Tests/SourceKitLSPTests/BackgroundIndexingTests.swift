@@ -160,11 +160,11 @@ final class BackgroundIndexingTests: XCTestCase {
   }
 
   func testBackgroundIndexingHappensWithLowPriority() async throws {
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.indexTestHooks.preparationTaskDidFinish = { taskDescription in
+    var testHooks = TestHooks()
+    testHooks.indexTestHooks.preparationTaskDidFinish = { taskDescription in
       XCTAssert(Task.currentPriority == .low, "\(taskDescription) ran with priority \(Task.currentPriority)")
     }
-    serverOptions.indexTestHooks.updateIndexStoreTaskDidFinish = { taskDescription in
+    testHooks.indexTestHooks.updateIndexStoreTaskDidFinish = { taskDescription in
       XCTAssert(Task.currentPriority == .low, "\(taskDescription) ran with priority \(Task.currentPriority)")
     }
     let project = try await SwiftPMTestProject(
@@ -188,7 +188,7 @@ final class BackgroundIndexingTests: XCTestCase {
           ]
         )
         """,
-      serverOptions: serverOptions,
+      testHooks: testHooks,
       enableBackgroundIndexing: true,
       pollIndex: false
     )
@@ -327,8 +327,8 @@ final class BackgroundIndexingTests: XCTestCase {
     let receivedReportProgressNotification = WrappedSemaphore(
       name: "Received work done progress saying indexing"
     )
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.indexTestHooks = IndexTestHooks(
+    var testHooks = TestHooks()
+    testHooks.indexTestHooks = IndexTestHooks(
       buildGraphGenerationDidFinish: {
         receivedBeginProgressNotification.waitOrXCTFail()
       },
@@ -346,7 +346,7 @@ final class BackgroundIndexingTests: XCTestCase {
         """
       ],
       capabilities: ClientCapabilities(window: WindowClientCapabilities(workDoneProgress: true)),
-      serverOptions: serverOptions,
+      testHooks: testHooks,
       enableBackgroundIndexing: true,
       pollIndex: false,
       preInitialization: { testClient in
@@ -532,7 +532,7 @@ final class BackgroundIndexingTests: XCTestCase {
   }
 
   func testPrepareTargetAfterEditToDependency() async throws {
-    var serverOptions = SourceKitLSPServer.Options.testDefault
+    var testHooks = TestHooks()
     let expectedPreparationTracker = ExpectedIndexTaskTracker(expectedPreparations: [
       [
         ExpectedPreparation(targetID: "LibA", runDestinationID: "destination"),
@@ -542,7 +542,7 @@ final class BackgroundIndexingTests: XCTestCase {
         ExpectedPreparation(targetID: "LibB", runDestinationID: "destination")
       ],
     ])
-    serverOptions.indexTestHooks = expectedPreparationTracker.testHooks
+    testHooks.indexTestHooks = expectedPreparationTracker.testHooks
 
     let project = try await SwiftPMTestProject(
       files: [
@@ -564,7 +564,7 @@ final class BackgroundIndexingTests: XCTestCase {
         )
         """,
       capabilities: ClientCapabilities(window: WindowClientCapabilities(workDoneProgress: true)),
-      serverOptions: serverOptions,
+      testHooks: testHooks,
       enableBackgroundIndexing: true,
       cleanUp: { expectedPreparationTracker.keepAlive() }
     )
@@ -639,7 +639,7 @@ final class BackgroundIndexingTests: XCTestCase {
     let libBStartedPreparation = WrappedSemaphore(name: "LibB started preparing")
     let libDPreparedForEditing = WrappedSemaphore(name: "LibD prepared for editing")
 
-    var serverOptions = SourceKitLSPServer.Options.testDefault
+    var testHooks = TestHooks()
     let expectedPreparationTracker = ExpectedIndexTaskTracker(expectedPreparations: [
       // Preparation of targets during the initial of the target
       [
@@ -666,7 +666,7 @@ final class BackgroundIndexingTests: XCTestCase {
         )
       ],
     ])
-    serverOptions.indexTestHooks = expectedPreparationTracker.testHooks
+    testHooks.indexTestHooks = expectedPreparationTracker.testHooks
 
     let project = try await SwiftPMTestProject(
       files: [
@@ -686,7 +686,7 @@ final class BackgroundIndexingTests: XCTestCase {
           ]
         )
         """,
-      serverOptions: serverOptions,
+      testHooks: testHooks,
       enableBackgroundIndexing: true,
       cleanUp: { expectedPreparationTracker.keepAlive() }
     )
@@ -731,11 +731,11 @@ final class BackgroundIndexingTests: XCTestCase {
 
     // Block the index tasks until we have received a log notification to make sure we stream out results as they come
     // in and not only when the indexing task has finished
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.indexTestHooks.preparationTaskDidFinish = { _ in
+    var testHooks = TestHooks()
+    testHooks.indexTestHooks.preparationTaskDidFinish = { _ in
       didReceivePreparationIndexLogMessage.waitOrXCTFail()
     }
-    serverOptions.indexTestHooks.updateIndexStoreTaskDidFinish = { _ in
+    testHooks.indexTestHooks.updateIndexStoreTaskDidFinish = { _ in
       didReceiveIndexingLogMessage.waitOrXCTFail()
       updateIndexStoreTaskDidFinish.signal()
     }
@@ -744,7 +744,7 @@ final class BackgroundIndexingTests: XCTestCase {
       files: [
         "MyFile.swift": ""
       ],
-      serverOptions: serverOptions,
+      testHooks: testHooks,
       enableBackgroundIndexing: true,
       pollIndex: false
     )
@@ -769,7 +769,7 @@ final class BackgroundIndexingTests: XCTestCase {
     let fileAIndexingStarted = WrappedSemaphore(name: "FileA indexing started")
     let fileBIndexingStarted = WrappedSemaphore(name: "FileB indexing started")
 
-    var serverOptions = SourceKitLSPServer.Options.testDefault
+    var testHooks = TestHooks()
     let expectedIndexTaskTracker = ExpectedIndexTaskTracker(
       expectedIndexStoreUpdates: [
         [
@@ -794,14 +794,14 @@ final class BackgroundIndexingTests: XCTestCase {
         ]
       ]
     )
-    serverOptions.indexTestHooks = expectedIndexTaskTracker.testHooks
+    testHooks.indexTestHooks = expectedIndexTaskTracker.testHooks
 
     _ = try await SwiftPMTestProject(
       files: [
         "FileA.swift": "",
         "FileB.swift": "",
       ],
-      serverOptions: serverOptions,
+      testHooks: testHooks,
       enableBackgroundIndexing: true,
       cleanUp: { expectedIndexTaskTracker.keepAlive() }
     )
@@ -832,7 +832,7 @@ final class BackgroundIndexingTests: XCTestCase {
       enableBackgroundIndexing: true
     )
 
-    var otherClientOptions = SourceKitLSPServer.Options.testDefault
+    var otherClientOptions = TestHooks()
     otherClientOptions.indexTestHooks = IndexTestHooks(
       preparationTaskDidStart: { taskDescription in
         XCTFail("Did not expect any target preparation, got \(taskDescription.targetsToPrepare)")
@@ -842,7 +842,7 @@ final class BackgroundIndexingTests: XCTestCase {
       }
     )
     let otherClient = try await TestSourceKitLSPClient(
-      serverOptions: otherClientOptions,
+      testHooks: otherClientOptions,
       enableBackgroundIndexing: true,
       workspaceFolders: [
         WorkspaceFolder(uri: DocumentURI(project.scratchDirectory))
@@ -968,8 +968,8 @@ final class BackgroundIndexingTests: XCTestCase {
   }
 
   func testUseBuildFlagsDuringPreparation() async throws {
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.buildSetup.flags.swiftCompilerFlags += ["-D", "MY_FLAG"]
+    var options = SourceKitLSPOptions.testDefault()
+    options.swiftPM.swiftCompilerFlags = ["-D", "MY_FLAG"]
     let project = try await SwiftPMTestProject(
       files: [
         "Lib/Lib.swift": """
@@ -994,7 +994,7 @@ final class BackgroundIndexingTests: XCTestCase {
           ]
         )
         """,
-      serverOptions: serverOptions,
+      options: options,
       enableBackgroundIndexing: true
     )
 
@@ -1066,8 +1066,7 @@ final class BackgroundIndexingTests: XCTestCase {
 
   func testCrossModuleFunctionalityEvenIfLowLevelModuleHasErrors() async throws {
     try await SkipUnless.swiftPMSupportsExperimentalPrepareForIndexing()
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.experimentalFeatures.insert(.swiftpmPrepareForIndexing)
+    let options = SourceKitLSPOptions.testDefault(experimentalFeatures: [.swiftpmPrepareForIndexing])
     let project = try await SwiftPMTestProject(
       files: [
         "LibA/LibA.swift": """
@@ -1100,7 +1099,7 @@ final class BackgroundIndexingTests: XCTestCase {
           ]
         )
         """,
-      serverOptions: serverOptions,
+      options: options,
       enableBackgroundIndexing: true
     )
 
@@ -1227,15 +1226,15 @@ final class BackgroundIndexingTests: XCTestCase {
   func testAddingRandomSwiftFileDoesNotTriggerPackageReload() async throws {
     let packageInitialized = AtomicBool(initialValue: false)
 
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.swiftpmTestHooks.reloadPackageDidStart = {
+    var testHooks = TestHooks()
+    testHooks.swiftpmTestHooks.reloadPackageDidStart = {
       if packageInitialized.value {
         XCTFail("Build graph should not get reloaded when random file gets added")
       }
     }
     let project = try await SwiftPMTestProject(
       files: ["Test.swift": ""],
-      serverOptions: serverOptions,
+      testHooks: testHooks,
       enableBackgroundIndexing: true
     )
     packageInitialized.value = true
@@ -1251,9 +1250,8 @@ final class BackgroundIndexingTests: XCTestCase {
     try await SkipUnless.swiftPMSupportsExperimentalPrepareForIndexing()
     try SkipUnless.longTestsEnabled()
 
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.experimentalFeatures.insert(.swiftpmPrepareForIndexing)
-    serverOptions.indexOptions.updateIndexStoreTimeout = .seconds(1)
+    var options = SourceKitLSPOptions.testDefault(experimentalFeatures: [.swiftpmPrepareForIndexing])
+    options.index.updateIndexStoreTimeout = 1 /* second */
 
     let dateStarted = Date()
     _ = try await SwiftPMTestProject(
@@ -1264,7 +1262,7 @@ final class BackgroundIndexingTests: XCTestCase {
         }
         """
       ],
-      serverOptions: serverOptions,
+      options: options,
       enableBackgroundIndexing: true
     )
     // Creating the `SwiftPMTestProject` implicitly waits for background indexing to finish.

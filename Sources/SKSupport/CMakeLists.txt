@@ -1,5 +1,6 @@
 
 add_library(SKSupport STATIC
+  AbsolutePath+Init.swift
   Atomics.swift
   BuildConfiguration.swift
   ByteString.swift

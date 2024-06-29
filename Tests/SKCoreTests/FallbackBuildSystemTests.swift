@@ -24,7 +24,7 @@ final class FallbackBuildSystemTests: XCTestCase {
     let sdk = try AbsolutePath(validating: "/my/sdk")
     let source = try AbsolutePath(validating: "/my/source.swift")
 
-    let bs = FallbackBuildSystem(buildSetup: .default)
+    let bs = FallbackBuildSystem(options: SourceKitLSPOptions.FallbackBuildSystemOptions())
     await bs.setSdkPath(sdk)
 
     assertNil(await bs.indexStorePath)
@@ -57,16 +57,13 @@ final class FallbackBuildSystemTests: XCTestCase {
     let sdk = try AbsolutePath(validating: "/my/sdk")
     let source = try AbsolutePath(validating: "/my/source.swift")
 
-    let buildSetup = BuildSetup(
-      configuration: .debug,
-      defaultWorkspaceType: nil,
-      path: nil,
-      flags: BuildFlags(swiftCompilerFlags: [
+    let options = SourceKitLSPOptions.FallbackBuildSystemOptions(
+      swiftCompilerFlags: [
         "-Xfrontend",
         "-debug-constraints",
-      ])
+      ]
     )
-    let bs = FallbackBuildSystem(buildSetup: buildSetup)
+    let bs = FallbackBuildSystem(options: options)
     await bs.setSdkPath(sdk)
 
     let args = await bs.buildSettings(for: source.asURI, language: .swift)?.compilerArguments
@@ -97,18 +94,15 @@ final class FallbackBuildSystemTests: XCTestCase {
     let sdk = try AbsolutePath(validating: "/my/sdk")
     let source = try AbsolutePath(validating: "/my/source.swift")
 
-    let buildSetup = BuildSetup(
-      configuration: .debug,
-      defaultWorkspaceType: nil,
-      path: nil,
-      flags: BuildFlags(swiftCompilerFlags: [
+    let options = SourceKitLSPOptions.FallbackBuildSystemOptions(
+      swiftCompilerFlags: [
         "-sdk",
         "/some/custom/sdk",
         "-Xfrontend",
         "-debug-constraints",
-      ])
+      ]
     )
-    let bs = FallbackBuildSystem(buildSetup: buildSetup)
+    let bs = FallbackBuildSystem(options: options)
     await bs.setSdkPath(sdk)
 
     assertEqual(
@@ -140,7 +134,7 @@ final class FallbackBuildSystemTests: XCTestCase {
     let sdk = try AbsolutePath(validating: "/my/sdk")
     let source = try AbsolutePath(validating: "/my/source.cpp")
 
-    let bs = FallbackBuildSystem(buildSetup: .default)
+    let bs = FallbackBuildSystem(options: SourceKitLSPOptions.FallbackBuildSystemOptions())
     await bs.setSdkPath(sdk)
 
     let settings = await bs.buildSettings(for: source.asURI, language: .cpp)!
@@ -170,15 +164,10 @@ final class FallbackBuildSystemTests: XCTestCase {
     let sdk = try AbsolutePath(validating: "/my/sdk")
     let source = try AbsolutePath(validating: "/my/source.cpp")
 
-    let buildSetup = BuildSetup(
-      configuration: .debug,
-      defaultWorkspaceType: nil,
-      path: nil,
-      flags: BuildFlags(cxxCompilerFlags: [
-        "-v"
-      ])
+    let options = SourceKitLSPOptions.FallbackBuildSystemOptions(
+      cxxCompilerFlags: ["-v"]
     )
-    let bs = FallbackBuildSystem(buildSetup: buildSetup)
+    let bs = FallbackBuildSystem(options: options)
     await bs.setSdkPath(sdk)
 
     assertEqual(
@@ -206,17 +195,14 @@ final class FallbackBuildSystemTests: XCTestCase {
     let sdk = try AbsolutePath(validating: "/my/sdk")
     let source = try AbsolutePath(validating: "/my/source.cpp")
 
-    let buildSetup = BuildSetup(
-      configuration: .debug,
-      defaultWorkspaceType: nil,
-      path: nil,
-      flags: BuildFlags(cxxCompilerFlags: [
+    let options = SourceKitLSPOptions.FallbackBuildSystemOptions(
+      cxxCompilerFlags: [
         "-isysroot",
         "/my/custom/sdk",
         "-v",
-      ])
+      ]
     )
-    let bs = FallbackBuildSystem(buildSetup: buildSetup)
+    let bs = FallbackBuildSystem(options: options)
     await bs.setSdkPath(sdk)
 
     assertEqual(
@@ -244,7 +230,7 @@ final class FallbackBuildSystemTests: XCTestCase {
 
   func testC() async throws {
     let source = try AbsolutePath(validating: "/my/source.c")
-    let bs = FallbackBuildSystem(buildSetup: .default)
+    let bs = FallbackBuildSystem(options: SourceKitLSPOptions.FallbackBuildSystemOptions())
     await bs.setSdkPath(nil)
     assertEqual(
       await bs.buildSettings(for: source.asURI, language: .c)?.compilerArguments,
@@ -257,15 +243,10 @@ final class FallbackBuildSystemTests: XCTestCase {
   func testCWithCustomFlags() async throws {
     let source = try AbsolutePath(validating: "/my/source.c")
 
-    let buildSetup = BuildSetup(
-      configuration: .debug,
-      defaultWorkspaceType: nil,
-      path: nil,
-      flags: BuildFlags(cCompilerFlags: [
-        "-v"
-      ])
+    let options = SourceKitLSPOptions.FallbackBuildSystemOptions(
+      cCompilerFlags: ["-v"]
     )
-    let bs = FallbackBuildSystem(buildSetup: buildSetup)
+    let bs = FallbackBuildSystem(options: options)
     await bs.setSdkPath(nil)
     assertEqual(
       await bs.buildSettings(for: source.asURI, language: .c)?.compilerArguments,
@@ -278,7 +259,7 @@ final class FallbackBuildSystemTests: XCTestCase {
 
   func testObjC() async throws {
     let source = try AbsolutePath(validating: "/my/source.m")
-    let bs = FallbackBuildSystem(buildSetup: .default)
+    let bs = FallbackBuildSystem(options: SourceKitLSPOptions.FallbackBuildSystemOptions())
     await bs.setSdkPath(nil)
     assertEqual(
       await bs.buildSettings(for: source.asURI, language: .objective_c)?.compilerArguments,
@@ -290,7 +271,7 @@ final class FallbackBuildSystemTests: XCTestCase {
 
   func testObjCXX() async throws {
     let source = try AbsolutePath(validating: "/my/source.mm")
-    let bs = FallbackBuildSystem(buildSetup: .default)
+    let bs = FallbackBuildSystem(options: SourceKitLSPOptions.FallbackBuildSystemOptions())
     await bs.setSdkPath(nil)
     assertEqual(
       await bs.buildSettings(for: source.asURI, language: .objective_cpp)?.compilerArguments,
@@ -302,7 +283,7 @@ final class FallbackBuildSystemTests: XCTestCase {
 
   func testUnknown() async throws {
     let source = try AbsolutePath(validating: "/my/source.mm")
-    let bs = FallbackBuildSystem(buildSetup: .default)
+    let bs = FallbackBuildSystem(options: SourceKitLSPOptions.FallbackBuildSystemOptions())
     assertNil(await bs.buildSettings(for: source.asURI, language: Language(rawValue: "unknown")))
   }
 }

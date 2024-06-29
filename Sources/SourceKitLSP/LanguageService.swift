@@ -87,7 +87,8 @@ public protocol LanguageService: AnyObject, Sendable {
   init?(
     sourceKitLSPServer: SourceKitLSPServer,
     toolchain: Toolchain,
-    options: SourceKitLSPServer.Options,
+    options: SourceKitLSPOptions,
+    testHooks: TestHooks,
     workspace: Workspace
   ) async throws
 

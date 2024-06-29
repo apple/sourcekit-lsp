@@ -56,7 +56,7 @@ final class BuildServerBuildSystemTests: XCTestCase {
   let buildFolder = try! AbsolutePath(validating: NSTemporaryDirectory())
 
   func testServerInitialize() async throws {
-    let buildSystem = try await BuildServerBuildSystem(projectRoot: root, buildFolder: buildFolder)
+    let buildSystem = try await BuildServerBuildSystem(projectRoot: root)
 
     assertEqual(
       await buildSystem.indexDatabasePath,
@@ -69,7 +69,7 @@ final class BuildServerBuildSystemTests: XCTestCase {
   }
 
   func testFileRegistration() async throws {
-    let buildSystem = try await BuildServerBuildSystem(projectRoot: root, buildFolder: buildFolder)
+    let buildSystem = try await BuildServerBuildSystem(projectRoot: root)
 
     let fileUrl = URL(fileURLWithPath: "/some/file/path")
     let expectation = XCTestExpectation(description: "\(fileUrl) settings updated")
@@ -85,7 +85,7 @@ final class BuildServerBuildSystemTests: XCTestCase {
   }
 
   func testBuildTargetsChanged() async throws {
-    let buildSystem = try await BuildServerBuildSystem(projectRoot: root, buildFolder: buildFolder)
+    let buildSystem = try await BuildServerBuildSystem(projectRoot: root)
 
     let fileUrl = URL(fileURLWithPath: "/some/file/path")
     let expectation = XCTestExpectation(description: "target changed")

@@ -82,9 +82,10 @@ public struct IndexCommand: AsyncParsableCommand {
   public init() {}
 
   public func run() async throws {
-    var serverOptions = SourceKitLSPServer.Options()
-    serverOptions.experimentalFeatures = Set(experimentalFeatures)
-    serverOptions.experimentalFeatures.insert(.backgroundIndexing)
+    let options = SourceKitLSPOptions(
+      backgroundIndexing: true,
+      experimentalFeatures: Set(experimentalFeatures)
+    )
 
     let installPath =
       if let toolchainOverride, let toolchain = Toolchain(try AbsolutePath(validating: toolchainOverride)) {
@@ -96,7 +97,7 @@ public struct IndexCommand: AsyncParsableCommand {
     let messageHandler = IndexLogMessageHandler()
     let inProcessClient = try await InProcessSourceKitLSPClient(
       toolchainRegistry: ToolchainRegistry(installPath: installPath),
-      serverOptions: serverOptions,
+      options: options,
       workspaceFolders: [WorkspaceFolder(uri: DocumentURI(URL(fileURLWithPath: project)))],
       messageHandler: messageHandler
     )

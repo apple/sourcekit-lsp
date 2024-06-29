@@ -24,8 +24,6 @@ extension SwiftLanguageService {
     let offset = snapshot.utf8Offset(of: completionPos)
     let filterText = String(snapshot.text[snapshot.indexOf(utf8Offset: offset)..<snapshot.index(of: req.position)])
 
-    let options = req.sourcekitlspOptions ?? serverOptions.completionOptions
-
     let clientSupportsSnippets =
       capabilityRegistry.clientCapabilities.textDocument?.completion?.completionItem?.snippetSupport ?? false
     let buildSettings = await buildSettings(for: snapshot.uri)
@@ -40,7 +38,6 @@ extension SwiftLanguageService {
       completionUtf8Offset: offset,
       cursorPosition: req.position,
       compileCommand: buildSettings,
-      options: options,
       clientSupportsSnippets: clientSupportsSnippets,
       filterText: filterText
     )

@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-public enum BuildConfiguration: String, Sendable {
+public enum BuildConfiguration: String, Codable, Sendable {
   case debug
   case release
 }

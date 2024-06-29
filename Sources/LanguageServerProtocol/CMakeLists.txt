@@ -123,7 +123,6 @@ add_library(LanguageServerProtocol STATIC
   SupportTypes/SemanticTokens.swift
   SupportTypes/SemanticTokenTypes.swift
   SupportTypes/ServerCapabilities.swift
-  SupportTypes/SKCompletionOptions.swift
   SupportTypes/StringOrMarkupContent.swift
   SupportTypes/SymbolKind.swift
   SupportTypes/TestItem.swift

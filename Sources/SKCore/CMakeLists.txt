@@ -1,7 +1,6 @@
 
 add_library(SKCore STATIC
   BuildServerBuildSystem.swift
-  BuildSetup.swift
   BuildSystem.swift
   BuildSystemDelegate.swift
   BuildSystemManager.swift
@@ -14,6 +13,7 @@ add_library(SKCore STATIC
   IndexTaskID.swift
   MainFilesProvider.swift
   PathPrefixMapping.swift
+  SourceKitLSPOptions.swift
   SplitShellCommand.swift
   TaskScheduler.swift
   Toolchain.swift

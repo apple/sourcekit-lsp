@@ -225,7 +225,7 @@ actor SharedWorkDoneProgressManager {
     }
     // Do all asynchronous operations up-front so that incrementing `inProgressOperations` and setting `workDoneProgress`
     // cannot be interrupted by an `await` call
-    let initialDebounce = await sourceKitLSPServer.options.workDoneProgressDebounceDuration
+    let initialDebounceDuration = await sourceKitLSPServer.options.workDoneProgressDebounceDurationOrDefault
     let capabilityRegistry = await sourceKitLSPServer.capabilityRegistry
 
     inProgressOperations += 1
@@ -234,7 +234,7 @@ actor SharedWorkDoneProgressManager {
         server: sourceKitLSPServer,
         capabilityRegistry: capabilityRegistry,
         tokenPrefix: tokenPrefix,
-        initialDebounce: initialDebounce,
+        initialDebounce: initialDebounceDuration,
         title: title,
         message: message
       )

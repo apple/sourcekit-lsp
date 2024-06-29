@@ -12,9 +12,6 @@
 
 /// Poll the index for unit changes and wait for them to be registered.
 /// **LSP Extension, For Testing**.
-///
-/// Users of PollIndex should set `"initializationOptions": { "listenToUnitEvents": false }` during
-/// the `initialize` request.
 public struct PollIndexRequest: RequestType {
   public static let method: String = "workspace/_pollIndex"
   public typealias Response = VoidResponse

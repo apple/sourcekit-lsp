@@ -36,7 +36,7 @@ final class BuildSystemManagerTests: XCTestCase {
 
     let bsm = await BuildSystemManager(
       buildSystem: nil,
-      fallbackBuildSystem: FallbackBuildSystem(buildSetup: .default),
+      fallbackBuildSystem: FallbackBuildSystem(options: SourceKitLSPOptions.FallbackBuildSystemOptions()),
       mainFilesProvider: mainFiles,
       toolchainRegistry: ToolchainRegistry.forTesting
     )
@@ -141,7 +141,7 @@ final class BuildSystemManagerTests: XCTestCase {
     let a = try DocumentURI(string: "bsm:a.swift")
     let mainFiles = ManualMainFilesProvider([a: [a]])
     let bs = ManualBuildSystem()
-    let fallback = FallbackBuildSystem(buildSetup: .default)
+    let fallback = FallbackBuildSystem(options: SourceKitLSPOptions.FallbackBuildSystemOptions())
     let bsm = await BuildSystemManager(
       buildSystem: bs,
       fallbackBuildSystem: fallback,

@@ -1400,11 +1400,10 @@ final class LocalSwiftTests: XCTestCase {
   func testDebouncePublishDiagnosticsNotification() async throws {
     try SkipUnless.longTestsEnabled()
 
-    var serverOptions = SourceKitLSPServer.Options.testDefault
-    serverOptions.swiftPublishDiagnosticsDebounceDuration = 1 /* 1s */
+    let options = SourceKitLSPOptions(swiftPublishDiagnosticsDebounceDuration: 1 /* second */)
 
     // Construct our own  `TestSourceKitLSPClient` instead of the one from set up because we want a higher debounce interval.
-    let testClient = try await TestSourceKitLSPClient(serverOptions: serverOptions, usePullDiagnostics: false)
+    let testClient = try await TestSourceKitLSPClient(options: options, usePullDiagnostics: false)
 
     let uri = DocumentURI(URL(fileURLWithPath: "/\(UUID())/a.swift"))
     testClient.openDocument("foo", uri: uri)
