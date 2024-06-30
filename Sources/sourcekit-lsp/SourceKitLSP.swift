@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import ArgumentParser
+import struct Basics.SwiftVersion
 import Csourcekitd  // Not needed here, but fixes debugging...
 import Diagnose
 import Dispatch
@@ -104,6 +105,7 @@ struct SourceKitLSP: AsyncParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "sourcekit-lsp",
     abstract: "Language Server Protocol implementation for Swift and C-based languages",
+    version: "sourcekit-lsp \(Basics.SwiftVersion.current.displayString)",
     subcommands: [
       DiagnoseCommand.self,
       DebugCommand.self,
