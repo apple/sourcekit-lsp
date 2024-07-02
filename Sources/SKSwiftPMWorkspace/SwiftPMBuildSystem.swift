@@ -399,7 +399,7 @@ extension SwiftPMBuildSystem {
     )
 
     self.fileToTargets = [DocumentURI: [SwiftBuildTarget]](
-      modulesGraph.allTargets.flatMap { target in
+      modulesGraph.allModules.flatMap { target in
         return target.sources.paths.compactMap { (filePath) -> (key: DocumentURI, value: [SwiftBuildTarget])? in
           guard let buildTarget = buildDescription.getBuildTarget(for: target, in: modulesGraph) else {
             return nil
@@ -411,7 +411,7 @@ extension SwiftPMBuildSystem {
     )
 
     self.sourceDirToTargets = [DocumentURI: [SwiftBuildTarget]](
-      modulesGraph.allTargets.compactMap { (target) -> (DocumentURI, [SwiftBuildTarget])? in
+      modulesGraph.allModules.compactMap { (target) -> (DocumentURI, [SwiftBuildTarget])? in
         guard let buildTarget = buildDescription.getBuildTarget(for: target, in: modulesGraph) else {
           return nil
         }
@@ -544,7 +544,7 @@ extension SwiftPMBuildSystem: SKCore.BuildSystem {
       return targets.map(ConfiguredTarget.init)
     }
 
-    if path.basename == "Package.swift" {
+    if path.basename == "Package.swift" && AbsolutePath(projectRoot) == path.parentDirectory {
       // We use an empty target name to represent the package manifest since an empty target name is not valid for any
       // user-defined target.
       return [ConfiguredTarget.forPackageManifest]
