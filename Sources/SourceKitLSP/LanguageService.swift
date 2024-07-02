@@ -13,6 +13,7 @@
 import Foundation
 import LanguageServerProtocol
 import SKCore
+import SwiftSyntax
 
 /// The state of a `ToolchainLanguageServer`
 public enum LanguageServerState {
@@ -124,9 +125,10 @@ public protocol LanguageService: AnyObject, Sendable {
   // MARK: - Text synchronization
 
   /// Sent to open up a document on the Language Server.
-  /// This may be called before or after a corresponding
-  /// `documentUpdatedBuildSettings` call for the same document.
-  func openDocument(_ notification: DidOpenTextDocumentNotification) async
+  ///
+  /// This may be called before or after a corresponding `documentUpdatedBuildSettings` call for the same document.
+  func openDocument(_ notification: DidOpenTextDocumentNotification, snapshot: DocumentSnapshot) async
+ 
 
   /// Sent to close a document on the Language Server.
   func closeDocument(_ notification: DidCloseTextDocumentNotification) async
@@ -138,7 +140,12 @@ public protocol LanguageService: AnyObject, Sendable {
   /// Only intended for `SwiftLanguageService`.
   func reopenDocument(_ notification: ReopenTextDocumentNotification) async
 
-  func changeDocument(_ notification: DidChangeTextDocumentNotification) async
+  func changeDocument(
+    _ notification: DidChangeTextDocumentNotification,
+    preEditSnapshot: DocumentSnapshot,
+    postEditSnapshot: DocumentSnapshot,
+    edits: [SourceEdit]
+  ) async
   func willSaveDocument(_ notification: WillSaveTextDocumentNotification) async
   func didSaveDocument(_ notification: DidSaveTextDocumentNotification) async
 

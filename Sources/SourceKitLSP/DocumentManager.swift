@@ -204,41 +204,41 @@ public final class DocumentManager: InMemoryDocumentManager, Sendable {
   }
 }
 
-extension DocumentManager {
+// extension DocumentManager {
 
-  // MARK: - LSP notification handling
+//   // MARK: - LSP notification handling
 
-  /// Convenience wrapper for `open(_:language:version:text:)` that logs on failure.
-  @discardableResult
-  func open(_ notification: DidOpenTextDocumentNotification) -> DocumentSnapshot? {
-    let doc = notification.textDocument
-    return orLog("failed to open document", level: .error) {
-      try open(doc.uri, language: doc.language, version: doc.version, text: doc.text)
-    }
-  }
+//   /// Convenience wrapper for `open(_:language:version:text:)` that logs on failure.
+//   @discardableResult
+//   func open(_ notification: DidOpenTextDocumentNotification) -> DocumentSnapshot? {
+//     let doc = notification.textDocument
+//     return orLog("failed to open document", level: .error) {
+//       try open(doc.uri, language: doc.language, version: doc.version, text: doc.text)
+//     }
+//   }
 
-  /// Convenience wrapper for `close(_:)` that logs on failure.
-  func close(_ notification: DidCloseTextDocumentNotification) {
-    orLog("failed to close document", level: .error) {
-      try close(notification.textDocument.uri)
-    }
-  }
+//   /// Convenience wrapper for `close(_:)` that logs on failure.
+//   func close(_ notification: DidCloseTextDocumentNotification) {
+//     orLog("failed to close document", level: .error) {
+//       try close(notification.textDocument.uri)
+//     }
+//   }
 
-  /// Convenience wrapper for `edit(_:newVersion:edits:updateDocumentTokens:)`
-  /// that logs on failure.
-  @discardableResult
-  func edit(
-    _ notification: DidChangeTextDocumentNotification
-  ) -> (preEditSnapshot: DocumentSnapshot, postEditSnapshot: DocumentSnapshot, edits: [SourceEdit])? {
-    return orLog("failed to edit document", level: .error) {
-      return try edit(
-        notification.textDocument.uri,
-        newVersion: notification.textDocument.version,
-        edits: notification.contentChanges
-      )
-    }
-  }
-}
+//   /// Convenience wrapper for `edit(_:newVersion:edits:updateDocumentTokens:)`
+//   /// that logs on failure.
+//   @discardableResult
+//   func edit(
+//     _ notification: DidChangeTextDocumentNotification
+//   ) -> (preEditSnapshot: DocumentSnapshot, postEditSnapshot: DocumentSnapshot, edits: [SourceEdit])? {
+//     return orLog("failed to edit document", level: .error) {
+//       return try edit(
+//         notification.textDocument.uri,
+//         newVersion: notification.textDocument.version,
+//         edits: notification.contentChanges
+//       )
+//     }
+//   }
+// }
 
 fileprivate extension SourceEdit {
   /// Constructs a `SourceEdit` from the given `TextDocumentContentChangeEvent`.
