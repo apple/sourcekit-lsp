@@ -159,7 +159,7 @@ extension SwiftLanguageService {
 
     appendAdditionalParameters?(skreq)
 
-    let dict = try await self.sourcekitd.send(skreq, fileContents: snapshot.text)
+    let dict = try await sendSourcekitdRequest(skreq, fileContents: snapshot.text)
 
     var cursorInfoResults: [CursorInfo] = []
     if let cursorInfo = CursorInfo(dict, sourcekitd: sourcekitd) {

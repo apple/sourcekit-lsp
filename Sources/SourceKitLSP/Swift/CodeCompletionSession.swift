@@ -13,6 +13,7 @@
 import Dispatch
 import LSPLogging
 import LanguageServerProtocol
+import SKCore
 import SKSupport
 import SourceKitD
 import SwiftExtensions
@@ -92,6 +93,7 @@ class CodeCompletionSession {
   static func completionList(
     sourcekitd: any SourceKitD,
     snapshot: DocumentSnapshot,
+    options: SourceKitLSPOptions,
     indentationWidth: Trivia?,
     completionPosition: Position,
     completionUtf8Offset: Int,
@@ -122,6 +124,7 @@ class CodeCompletionSession {
       let session = CodeCompletionSession(
         sourcekitd: sourcekitd,
         snapshot: snapshot,
+        options: options,
         indentationWidth: indentationWidth,
         utf8Offset: completionUtf8Offset,
         position: completionPosition,
@@ -139,6 +142,7 @@ class CodeCompletionSession {
 
   private let sourcekitd: any SourceKitD
   private let snapshot: DocumentSnapshot
+  private let options: SourceKitLSPOptions
   /// The inferred indentation width of the source file the completion is being performed in
   private let indentationWidth: Trivia?
   private let utf8StartOffset: Int
@@ -158,6 +162,7 @@ class CodeCompletionSession {
   private init(
     sourcekitd: any SourceKitD,
     snapshot: DocumentSnapshot,
+    options: SourceKitLSPOptions,
     indentationWidth: Trivia?,
     utf8Offset: Int,
     position: Position,
@@ -165,6 +170,7 @@ class CodeCompletionSession {
     clientSupportsSnippets: Bool
   ) {
     self.sourcekitd = sourcekitd
+    self.options = options
     self.indentationWidth = indentationWidth
     self.snapshot = snapshot
     self.utf8StartOffset = utf8Offset
@@ -193,7 +199,11 @@ class CodeCompletionSession {
       keys.compilerArgs: compileCommand?.compilerArgs as [SKDRequestValue]?,
     ])
 
-    let dict = try await sourcekitd.send(req, fileContents: snapshot.text)
+    let dict = try await sourcekitd.send(
+      req,
+      timeout: options.sourcekitdRequestTimeoutOrDefault,
+      fileContents: snapshot.text
+    )
     self.state = .open
 
     guard let completions: SKDResponseArray = dict[keys.results] else {
@@ -226,7 +236,11 @@ class CodeCompletionSession {
       keys.codeCompleteOptions: optionsDictionary(filterText: filterText),
     ])
 
-    let dict = try await sourcekitd.send(req, fileContents: snapshot.text)
+    let dict = try await sourcekitd.send(
+      req,
+      timeout: options.sourcekitdRequestTimeoutOrDefault,
+      fileContents: snapshot.text
+    )
     guard let completions: SKDResponseArray = dict[keys.results] else {
       return CompletionList(isIncomplete: false, items: [])
     }
@@ -269,7 +283,7 @@ class CodeCompletionSession {
         keys.name: snapshot.uri.pseudoPath,
       ])
       logger.info("Closing code completion session: \(self.description)")
-      _ = try? await sourcekitd.send(req, fileContents: nil)
+      _ = try? await sourcekitd.send(req, timeout: options.sourcekitdRequestTimeoutOrDefault, fileContents: nil)
       self.state = .closed
     }
   }
