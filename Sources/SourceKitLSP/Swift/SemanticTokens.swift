@@ -150,7 +150,7 @@ extension SyntaxClassification {
     case .docLineComment, .docBlockComment:
       return (.comment, .documentation)
     case .argumentLabel:
-      return (.function, [])
+      return (.function, [.argumentLabel])
     }
   }
 }

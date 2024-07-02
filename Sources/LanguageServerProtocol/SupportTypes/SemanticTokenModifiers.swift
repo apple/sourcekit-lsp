@@ -47,6 +47,11 @@ public struct SemanticTokenModifiers: OptionSet, Hashable, Sendable {
   public static let fileScope = Self(rawValue: 1 << 19)
   public static let globalScope = Self(rawValue: 1 << 20)
 
+  /// Argument labels in function definitions and function calls
+  ///
+  /// **(LSP Extension)**
+  public static let argumentLabel = Self(rawValue: 1 << 21)
+
   public var name: String? {
     switch self {
     case .declaration: return "declaration"
@@ -70,6 +75,7 @@ public struct SemanticTokenModifiers: OptionSet, Hashable, Sendable {
     case .classScope: return "classScope"
     case .fileScope: return "fileScope"
     case .globalScope: return "globalScope"
+    case .argumentLabel: return "argumentLabel"
     default: return nil
     }
   }
@@ -98,5 +104,6 @@ public struct SemanticTokenModifiers: OptionSet, Hashable, Sendable {
     .classScope,
     .fileScope,
     .globalScope,
+    .argumentLabel,
   ]
 }
