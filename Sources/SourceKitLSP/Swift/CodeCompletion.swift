@@ -33,6 +33,7 @@ extension SwiftLanguageService {
     return try await CodeCompletionSession.completionList(
       sourcekitd: sourcekitd,
       snapshot: snapshot,
+      options: options,
       indentationWidth: inferredIndentationWidth,
       completionPosition: completionPos,
       completionUtf8Offset: offset,

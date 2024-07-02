@@ -83,31 +83,41 @@ public enum SKDError: Error, Equatable {
   /// The request was cancelled.
   case requestCancelled
 
+  /// The request exceeded the maximum allowed duration.
+  case timedOut
+
   /// Loading a required symbol from the sourcekitd library failed.
   case missingRequiredSymbol(String)
 }
 
 extension SourceKitD {
-
   // MARK: - Convenience API for requests.
 
   /// - Parameters:
-  ///   - req: The request to send to sourcekitd.
+  ///   - request: The request to send to sourcekitd.
+  ///   - timeout: The maximum duration how long to wait for a response. If no response is returned within this time,
+  ///     declare the request as having timed out.
   ///   - fileContents: The contents of the file that the request operates on. If sourcekitd crashes, the file contents
   ///     will be logged.
-  public func send(_ request: SKDRequestDictionary, fileContents: String?) async throws -> SKDResponseDictionary {
+  public func send(
+    _ request: SKDRequestDictionary,
+    timeout: Duration,
+    fileContents: String?
+  ) async throws -> SKDResponseDictionary {
     log(request: request)
 
-    let sourcekitdResponse: SKDResponse = try await withCancellableCheckedThrowingContinuation { continuation in
-      var handle: sourcekitd_api_request_handle_t? = nil
-      api.send_request(request.dict, &handle) { response in
-        continuation.resume(returning: SKDResponse(response!, sourcekitd: self))
-      }
-      return handle
-    } cancel: { handle in
-      if let handle {
-        logRequestCancellation(request: request)
-        api.cancel_request(handle)
+    let sourcekitdResponse = try await withTimeout(timeout) {
+      return try await withCancellableCheckedThrowingContinuation { continuation in
+        var handle: sourcekitd_api_request_handle_t? = nil
+        self.api.send_request(request.dict, &handle) { response in
+          continuation.resume(returning: SKDResponse(response!, sourcekitd: self))
+        }
+        return handle
+      } cancel: { handle in
+        if let handle {
+          self.logRequestCancellation(request: request)
+          self.api.cancel_request(handle)
+        }
       }
     }
 
@@ -116,6 +126,9 @@ extension SourceKitD {
     guard let dict = sourcekitdResponse.value else {
       if sourcekitdResponse.error == .connectionInterrupted {
         log(crashedRequest: request, fileContents: fileContents)
+      }
+      if sourcekitdResponse.error == .requestCancelled && !Task.isCancelled {
+        throw SKDError.timedOut
       }
       throw sourcekitdResponse.error!
     }

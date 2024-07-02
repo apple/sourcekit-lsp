@@ -52,7 +52,7 @@ extension SwiftLanguageService {
         symbol: symbol
       )
       _ = await orLog("Closing generated interface") {
-        try await self.sourcekitd.send(closeDocumentSourcekitdRequest(uri: interfaceDocURI), fileContents: nil)
+        try await sendSourcekitdRequest(closeDocumentSourcekitdRequest(uri: interfaceDocURI), fileContents: nil)
       }
       return result
     }
@@ -80,7 +80,7 @@ extension SwiftLanguageService {
       keys.compilerArgs: await self.buildSettings(for: request.textDocument.uri)?.compilerArgs as [SKDRequestValue]?,
     ])
 
-    let dict = try await self.sourcekitd.send(skreq, fileContents: nil)
+    let dict = try await sendSourcekitdRequest(skreq, fileContents: nil)
     return GeneratedInterfaceInfo(contents: dict[keys.sourceText] ?? "")
   }
 
@@ -101,7 +101,7 @@ extension SwiftLanguageService {
         keys.usr: symbol,
       ])
 
-      let dict = try await self.sourcekitd.send(skreq, fileContents: snapshot.text)
+      let dict = try await sendSourcekitdRequest(skreq, fileContents: snapshot.text)
       if let offset: Int = dict[keys.offset] {
         return GeneratedInterfaceDetails(uri: uri, position: snapshot.positionOf(utf8Offset: offset))
       } else {

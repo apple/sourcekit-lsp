@@ -18,6 +18,8 @@ extension ResponseError {
     switch value {
     case .requestCancelled:
       self = .cancelled
+    case .timedOut:
+      self = .unknown("sourcekitd request timed out")
     case .requestFailed(let desc):
       self = .unknown("sourcekitd request failed: \(desc)")
     case .requestInvalid(let desc):

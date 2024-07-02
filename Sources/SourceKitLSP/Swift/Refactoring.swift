@@ -120,7 +120,7 @@ extension SwiftLanguageService {
       keys.compilerArgs: await self.buildSettings(for: snapshot.uri)?.compilerArgs as [SKDRequestValue]?,
     ])
 
-    let dict = try await self.sourcekitd.send(skreq, fileContents: snapshot.text)
+    let dict = try await sendSourcekitdRequest(skreq, fileContents: snapshot.text)
     guard let refactor = T.Response(refactorCommand.title, dict, snapshot, self.keys) else {
       throw SemanticRefactoringError.noEditsNeeded(uri)
     }

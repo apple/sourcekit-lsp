@@ -191,6 +191,10 @@ public struct SourceKitLSPOptions: Sendable, Codable {
   /// Whether background indexing is enabled.
   public var backgroundIndexing: Bool?
 
+  public var backgroundIndexingOrDefault: Bool {
+    return backgroundIndexing ?? false
+  }
+
   /// Experimental features that are enabled.
   public var experimentalFeatures: Set<ExperimentalFeature>? = nil
 
@@ -220,8 +224,21 @@ public struct SourceKitLSPOptions: Sendable, Codable {
     return .seconds(1)
   }
 
-  public var backgroundIndexingOrDefault: Bool {
-    return backgroundIndexing ?? false
+  /// The maximum duration that a sourcekitd request should be allowed to execute before being declared as timed out.
+  ///
+  /// In general, editors should cancel requests that they are no longer interested in, but in case editors don't cancel
+  /// requests, this ensures that a long-running non-cancelled request is blocking sourcekitd and thus most semantic
+  /// functionality.
+  ///
+  /// In particular, VS Code does not cancel the semantic tokens request, which can cause a long-running AST build that
+  /// blocks sourcekitd.
+  public var sourcekitdRequestTimeout: Double? = nil
+
+  public var sourcekitdRequestTimeoutOrDefault: Duration {
+    if let sourcekitdRequestTimeout {
+      return .seconds(sourcekitdRequestTimeout)
+    }
+    return .seconds(120)
   }
 
   public init(
@@ -235,7 +252,8 @@ public struct SourceKitLSPOptions: Sendable, Codable {
     backgroundIndexing: Bool? = nil,
     experimentalFeatures: Set<ExperimentalFeature>? = nil,
     swiftPublishDiagnosticsDebounceDuration: Double? = nil,
-    workDoneProgressDebounceDuration: Double? = nil
+    workDoneProgressDebounceDuration: Double? = nil,
+    sourcekitdRequestTimeout: Double? = nil
   ) {
     self.swiftPM = swiftPM
     self.fallbackBuildSystem = fallbackBuildSystem
@@ -248,6 +266,7 @@ public struct SourceKitLSPOptions: Sendable, Codable {
     self.experimentalFeatures = experimentalFeatures
     self.swiftPublishDiagnosticsDebounceDuration = swiftPublishDiagnosticsDebounceDuration
     self.workDoneProgressDebounceDuration = workDoneProgressDebounceDuration
+    self.sourcekitdRequestTimeout = sourcekitdRequestTimeout
   }
 
   public init?(fromLSPAny lspAny: LSPAny?) throws {
@@ -300,7 +319,8 @@ public struct SourceKitLSPOptions: Sendable, Codable {
       swiftPublishDiagnosticsDebounceDuration: override?.swiftPublishDiagnosticsDebounceDuration
         ?? base.swiftPublishDiagnosticsDebounceDuration,
       workDoneProgressDebounceDuration: override?.workDoneProgressDebounceDuration
-        ?? base.workDoneProgressDebounceDuration
+        ?? base.workDoneProgressDebounceDuration,
+      sourcekitdRequestTimeout: override?.sourcekitdRequestTimeout ?? base.sourcekitdRequestTimeout
     )
   }
 

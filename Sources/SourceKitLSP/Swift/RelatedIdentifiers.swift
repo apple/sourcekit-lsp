@@ -74,7 +74,7 @@ extension SwiftLanguageService {
       keys.compilerArgs: await self.buildSettings(for: snapshot.uri)?.compilerArgs as [SKDRequestValue]?,
     ])
 
-    let dict = try await self.sourcekitd.send(skreq, fileContents: snapshot.text)
+    let dict = try await sendSourcekitdRequest(skreq, fileContents: snapshot.text)
 
     guard let results: SKDResponseArray = dict[self.keys.results] else {
       throw ResponseError.internalError("sourcekitd response did not contain results")

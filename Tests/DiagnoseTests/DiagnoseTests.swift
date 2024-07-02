@@ -325,7 +325,7 @@ private class InProcessSourceKitRequestExecutor: SourceKitRequestExecutor {
     logger.info("Received response: \(response.description)")
 
     switch response.error {
-    case .requestFailed, .requestInvalid, .requestCancelled, .missingRequiredSymbol, .connectionInterrupted:
+    case .requestFailed, .requestInvalid, .requestCancelled, .timedOut, .missingRequiredSymbol, .connectionInterrupted:
       return .error
     case nil:
       if reproducerPredicate.evaluate(with: response.description) {

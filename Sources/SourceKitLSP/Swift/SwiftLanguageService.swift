@@ -109,17 +109,16 @@ public actor SwiftLanguageService: LanguageService, Sendable {
 
   let testHooks: TestHooks
 
-  /// Directory where generated Files will be stored.
-  let generatedFilesPath: URL
+  let options: SourceKitLSPOptions
 
   /// Directory where generated Swift interfaces will be stored.
   var generatedInterfacesPath: URL {
-    generatedFilesPath.appendingPathComponent("GeneratedInterfaces")
+    options.generatedFilesAbsolutePath.asURL.appendingPathComponent("GeneratedInterfaces")
   }
 
   /// Directory where generated Macro expansions  will be stored.
   var generatedMacroExpansionsPath: URL {
-    generatedFilesPath.appendingPathComponent("GeneratedMacroExpansions")
+    options.generatedFilesAbsolutePath.asURL.appendingPathComponent("GeneratedMacroExpansions")
   }
 
   // FIXME: ideally we wouldn't need separate management from a parent server in the same process.
@@ -187,6 +186,7 @@ public actor SwiftLanguageService: LanguageService, Sendable {
     self.documentManager = DocumentManager()
     self.state = .connected
     self.diagnosticReportManager = nil  // Needed to work around rdar://116221716
+    self.options = options
 
     // The debounce duration of 500ms was chosen arbitrarily without scientific research.
     self.refreshDiagnosticsDebouncer = Debouncer(debounceDuration: .milliseconds(500)) { [weak sourceKitLSPServer] in
@@ -199,10 +199,9 @@ public actor SwiftLanguageService: LanguageService, Sendable {
       }
     }
 
-    self.generatedFilesPath = options.generatedFilesAbsolutePath.asURL
-
     self.diagnosticReportManager = DiagnosticReportManager(
       sourcekitd: self.sourcekitd,
+      options: options,
       syntaxTreeManager: syntaxTreeManager,
       documentManager: documentManager,
       clientHasDiagnosticsCodeDescriptionSupport: await self.clientHasDiagnosticsCodeDescriptionSupport
@@ -234,6 +233,17 @@ public actor SwiftLanguageService: LanguageService, Sendable {
     } else {
       return nil
     }
+  }
+
+  func sendSourcekitdRequest(
+    _ request: SKDRequestDictionary,
+    fileContents: String?
+  ) async throws -> SKDResponseDictionary {
+    try await sourcekitd.send(
+      request,
+      timeout: options.sourcekitdRequestTimeoutOrDefault,
+      fileContents: fileContents
+    )
   }
 
   public nonisolated func canHandle(workspace: Workspace) -> Bool {
@@ -349,7 +359,7 @@ extension SwiftLanguageService {
     let req = sourcekitd.dictionary([
       keys.request: sourcekitd.requests.crashWithExit
     ])
-    _ = try? await sourcekitd.send(req, fileContents: nil)
+    _ = try? await sendSourcekitdRequest(req, fileContents: nil)
   }
 
   // MARK: - Build System Integration
@@ -365,13 +375,17 @@ extension SwiftLanguageService {
     await diagnosticReportManager.removeItemsFromCache(with: snapshot.uri)
 
     let closeReq = closeDocumentSourcekitdRequest(uri: snapshot.uri)
-    _ = await orLog("Closing document to re-open it") { try await self.sourcekitd.send(closeReq, fileContents: nil) }
+    _ = await orLog("Closing document to re-open it") {
+      try await self.sendSourcekitdRequest(closeReq, fileContents: nil)
+    }
 
     let openReq = openDocumentSourcekitdRequest(
       snapshot: snapshot,
       compileCommand: await buildSettings(for: snapshot.uri)
     )
-    _ = await orLog("Re-opening document") { try await self.sourcekitd.send(openReq, fileContents: snapshot.text) }
+    _ = await orLog("Re-opening document") {
+      try await self.sendSourcekitdRequest(openReq, fileContents: snapshot.text)
+    }
 
     if await capabilityRegistry.clientSupportsPullDiagnostics(for: .swift) {
       await self.refreshDiagnosticsDebouncer.scheduleCall()
@@ -393,7 +407,7 @@ extension SwiftLanguageService {
       let req = sourcekitd.dictionary([
         keys.request: requests.dependencyUpdated
       ])
-      _ = try await self.sourcekitd.send(req, fileContents: nil)
+      _ = try await self.sendSourcekitdRequest(req, fileContents: nil)
     }
     // `documentUpdatedBuildSettings` already handles reopening the document, so we do that here as well.
     await self.documentUpdatedBuildSettings(uri)
@@ -437,7 +451,7 @@ extension SwiftLanguageService {
     let buildSettings = await self.buildSettings(for: snapshot.uri)
 
     let req = openDocumentSourcekitdRequest(snapshot: snapshot, compileCommand: buildSettings)
-    _ = try? await self.sourcekitd.send(req, fileContents: snapshot.text)
+    _ = try? await self.sendSourcekitdRequest(req, fileContents: snapshot.text)
     await publishDiagnosticsIfNeeded(for: notification.textDocument.uri)
   }
 
@@ -449,7 +463,7 @@ extension SwiftLanguageService {
     self.documentManager.close(notification)
 
     let req = closeDocumentSourcekitdRequest(uri: notification.textDocument.uri)
-    _ = try? await self.sourcekitd.send(req, fileContents: nil)
+    _ = try? await self.sendSourcekitdRequest(req, fileContents: nil)
   }
 
   /// Cancels any in-flight tasks to send a `PublishedDiagnosticsNotification` after edits.
@@ -555,7 +569,7 @@ extension SwiftLanguageService {
         keys.sourceText: edit.replacement,
       ])
       do {
-        _ = try await self.sourcekitd.send(req, fileContents: nil)
+        _ = try await self.sendSourcekitdRequest(req, fileContents: nil)
       } catch {
         logger.fault(
           """

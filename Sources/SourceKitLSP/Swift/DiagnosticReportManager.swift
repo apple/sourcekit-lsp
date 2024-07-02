@@ -12,6 +12,7 @@
 
 import LSPLogging
 import LanguageServerProtocol
+import SKCore
 import SKSupport
 import SourceKitD
 import SwiftExtensions
@@ -22,6 +23,7 @@ actor DiagnosticReportManager {
   private typealias ReportTask = RefCountedCancellableTask<RelatedFullDocumentDiagnosticReport>
 
   private let sourcekitd: SourceKitD
+  private let options: SourceKitLSPOptions
   private let syntaxTreeManager: SyntaxTreeManager
   private let documentManager: DocumentManager
   private let clientHasDiagnosticsCodeDescriptionSupport: Bool
@@ -48,11 +50,13 @@ actor DiagnosticReportManager {
 
   init(
     sourcekitd: SourceKitD,
+    options: SourceKitLSPOptions,
     syntaxTreeManager: SyntaxTreeManager,
     documentManager: DocumentManager,
     clientHasDiagnosticsCodeDescriptionSupport: Bool
   ) {
     self.sourcekitd = sourcekitd
+    self.options = options
     self.syntaxTreeManager = syntaxTreeManager
     self.documentManager = documentManager
     self.clientHasDiagnosticsCodeDescriptionSupport = clientHasDiagnosticsCodeDescriptionSupport
@@ -104,7 +108,11 @@ actor DiagnosticReportManager {
       keys.compilerArgs: compilerArgs as [SKDRequestValue],
     ])
 
-    let dict = try await self.sourcekitd.send(skreq, fileContents: snapshot.text)
+    let dict = try await self.sourcekitd.send(
+      skreq,
+      timeout: options.sourcekitdRequestTimeoutOrDefault,
+      fileContents: snapshot.text
+    )
 
     try Task.checkCancellation()
 

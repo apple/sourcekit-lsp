@@ -98,7 +98,7 @@ extension SwiftLanguageService {
       skreq.set(keys.length, to: end - start)
     }
 
-    let dict = try await self.sourcekitd.send(skreq, fileContents: snapshot.text)
+    let dict = try await sendSourcekitdRequest(skreq, fileContents: snapshot.text)
     guard let skVariableTypeInfos: SKDResponseArray = dict[keys.variableTypeList] else {
       return []
     }

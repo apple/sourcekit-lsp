@@ -81,7 +81,7 @@ public struct ErrorCode: RawRepresentable, Codable, Hashable, Sendable {
   /// It doesn't denote a real error code.
   public static let lspReservedErrorRangeEnd = ErrorCode(rawValue: -32800)
 
-  // MARK: SourceKit-LSP specifiic eror codes
+  // MARK: SourceKit-LSP specific error codes
   public static let workspaceNotOpen: ErrorCode = ErrorCode(rawValue: -32003)
 }
 

@@ -96,6 +96,9 @@ public struct RunSourceKitdRequestCommand: AsyncParsableCommand {
     case .requestCancelled:
       print("request cancelled")
       throw ExitCode(1)
+    case .timedOut:
+      print("request timed out")
+      throw ExitCode(1)
     case .missingRequiredSymbol:
       print("missing required symbol")
       throw ExitCode(1)

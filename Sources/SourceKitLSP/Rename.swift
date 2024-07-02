@@ -359,7 +359,7 @@ extension SwiftLanguageService {
       keys.argNames: sourcekitd.array(name.parameters.map { $0.stringOrWildcard }),
     ])
 
-    let response = try await sourcekitd.send(req, fileContents: snapshot.text)
+    let response = try await sendSourcekitdRequest(req, fileContents: snapshot.text)
 
     guard let isZeroArgSelector: Int = response[keys.isZeroArgSelector],
       let selectorPieces: SKDResponseArray = response[keys.selectorPieces]
@@ -416,7 +416,7 @@ extension SwiftLanguageService {
       req.set(keys.baseName, to: name)
     }
 
-    let response = try await sourcekitd.send(req, fileContents: snapshot.text)
+    let response = try await sendSourcekitdRequest(req, fileContents: snapshot.text)
 
     guard let baseName: String = response[keys.baseName] else {
       throw NameTranslationError.malformedClangToSwiftTranslateNameResponse(response)
@@ -914,7 +914,7 @@ extension SwiftLanguageService {
       keys.renameLocations: locations,
     ])
 
-    let syntacticRenameRangesResponse = try await sourcekitd.send(skreq, fileContents: snapshot.text)
+    let syntacticRenameRangesResponse = try await sendSourcekitdRequest(skreq, fileContents: snapshot.text)
     guard let categorizedRanges: SKDResponseArray = syntacticRenameRangesResponse[keys.categorizedRanges] else {
       throw ResponseError.internalError("sourcekitd did not return categorized ranges")
     }

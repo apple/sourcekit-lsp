@@ -30,7 +30,7 @@ extension SwiftLanguageService {
       keys.compilerArgs: buildSettings.compilerArgs as [SKDRequestValue],
     ])
 
-    let dict = try await sourcekitd.send(skreq, fileContents: snapshot.text)
+    let dict = try await sendSourcekitdRequest(skreq, fileContents: snapshot.text)
 
     guard let skTokens: SKDResponseArray = dict[keys.semanticTokens] else {
       return nil
