@@ -66,6 +66,7 @@ add_library(LanguageServerProtocol STATIC
   Requests/InlineValueRequest.swift
   Requests/LinkedEditingRangeRequest.swift
   Requests/MonikersRequest.swift
+  Requests/PeekDocumentsRequest.swift
   Requests/PollIndexRequest.swift
   Requests/PrepareRenameRequest.swift
   Requests/ReferencesRequest.swift

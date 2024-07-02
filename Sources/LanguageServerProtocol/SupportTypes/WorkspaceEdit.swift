@@ -303,35 +303,3 @@ public struct DeleteFile: Codable, Hashable, Sendable {
     try container.encodeIfPresent(self.annotationId, forKey: .annotationId)
   }
 }
-
-extension WorkspaceEdit: LSPAnyCodable {
-  public init?(fromLSPDictionary dictionary: [String: LSPAny]) {
-    guard case .dictionary(let lspDict) = dictionary[CodingKeys.changes.stringValue] else {
-      return nil
-    }
-    var dictionary = [DocumentURI: [TextEdit]]()
-    for (key, value) in lspDict {
-      guard
-        let uri = try? DocumentURI(string: key),
-        let edits = [TextEdit](fromLSPArray: value)
-      else {
-        return nil
-      }
-      dictionary[uri] = edits
-    }
-    self.changes = dictionary
-  }
-
-  public func encodeToLSPAny() -> LSPAny {
-    guard let changes = changes else {
-      return nil
-    }
-    let values = changes.map {
-      ($0.key.stringValue, $0.value.encodeToLSPAny())
-    }
-    let dictionary = Dictionary(uniqueKeysWithValues: values)
-    return .dictionary([
-      CodingKeys.changes.stringValue: .dictionary(dictionary)
-    ])
-  }
-}

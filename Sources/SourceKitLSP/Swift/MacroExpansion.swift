@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Crypto
 import Foundation
 import LSPLogging
 import LanguageServerProtocol
@@ -46,17 +47,15 @@ struct MacroExpansion: RefactoringResponse {
 extension SwiftLanguageService {
   /// Handles the `ExpandMacroCommand`.
   ///
-  /// Makes a request to sourcekitd and wraps the result into a `MacroExpansion`
-  /// and then makes a `ShowDocumentRequest` to the client side for each
-  /// expansion to be displayed.
+  /// Makes a `PeekDocumentsRequest` or `ShowDocumentRequest`, containing the
+  /// location of each macro expansion, to the client depending on whether the
+  /// client supports the `experimental["workspace/peekDocuments"]` capability.
   ///
   /// - Parameters:
   ///   - expandMacroCommand: The `ExpandMacroCommand` that triggered this request.
-  ///
-  /// - Returns: A `[RefactoringEdit]` with the necessary edits and buffer name as a `LSPAny`
   func expandMacro(
     _ expandMacroCommand: ExpandMacroCommand
-  ) async throws -> LSPAny {
+  ) async throws {
     guard let sourceKitLSPServer else {
       // `SourceKitLSPServer` has been destructed. We are tearing down the
       // language server. Nothing left to do.
@@ -69,6 +68,10 @@ extension SwiftLanguageService {
 
     let expansion = try await self.refactoring(expandMacroCommand)
 
+    var completeExpansionFileContent = ""
+    var completeExpansionDirectoryName = ""
+
+    var macroExpansionFilePaths: [URL] = []
     for macroEdit in expansion.edits {
       if let bufferName = macroEdit.bufferName {
         // buffer name without ".swift"
@@ -79,6 +82,9 @@ extension SwiftLanguageService {
 
         let macroExpansionBufferDirectoryURL = self.generatedMacroExpansionsPath
           .appendingPathComponent(macroExpansionBufferDirectoryName)
+
+        completeExpansionDirectoryName += "\(bufferName)-"
+
         do {
           try FileManager.default.createDirectory(
             at: macroExpansionBufferDirectoryURL,
@@ -95,7 +101,7 @@ extension SwiftLanguageService {
 
         // github permalink notation for position range
         let macroExpansionPositionRangeIndicator =
-          "L\(macroEdit.range.lowerBound.line)C\(macroEdit.range.lowerBound.utf16index)-L\(macroEdit.range.upperBound.line)C\(macroEdit.range.upperBound.utf16index)"
+          "L\(macroEdit.range.lowerBound.line + 1)C\(macroEdit.range.lowerBound.utf16index + 1)-L\(macroEdit.range.upperBound.line + 1)C\(macroEdit.range.upperBound.utf16index + 1)"
 
         let macroExpansionFilePath =
           macroExpansionBufferDirectoryURL
@@ -111,22 +117,95 @@ extension SwiftLanguageService {
           )
         }
 
-        Task {
-          let req = ShowDocumentRequest(uri: DocumentURI(macroExpansionFilePath), selection: macroEdit.range)
+        macroExpansionFilePaths.append(macroExpansionFilePath)
 
-          let response = await orLog("Sending ShowDocumentRequest to Client") {
-            try await sourceKitLSPServer.sendRequestToClient(req)
-          }
+        let editContent =
+          """
+          // \(sourceFileURL.lastPathComponent) @ \(macroEdit.range.lowerBound.line + 1):\(macroEdit.range.lowerBound.utf16index + 1) - \(macroEdit.range.upperBound.line + 1):\(macroEdit.range.upperBound.utf16index + 1)
+          \(macroEdit.newText)
 
-          if let response, !response.success {
-            logger.error("client refused to show document for \(expansion.title, privacy: .public)")
-          }
-        }
+
+          """
+        completeExpansionFileContent += editContent
       } else if !macroEdit.newText.isEmpty {
         logger.fault("Unable to retrieve some parts of macro expansion")
       }
     }
 
-    return expansion.edits.encodeToLSPAny()
+    // removes superfluous newline
+    if completeExpansionFileContent.hasSuffix("\n\n") {
+      completeExpansionFileContent.removeLast()
+    }
+
+    if completeExpansionDirectoryName.hasSuffix("-") {
+      completeExpansionDirectoryName.removeLast()
+    }
+
+    var completeExpansionFilePath =
+      self.generatedMacroExpansionsPath.appendingPathComponent(
+        Insecure.MD5.hash(
+          data: Data(completeExpansionDirectoryName.utf8)
+        )
+        .map { String(format: "%02hhx", $0) }  // maps each byte of the hash to its hex equivalent `String`
+        .joined()
+      )
+
+    do {
+      try FileManager.default.createDirectory(
+        at: completeExpansionFilePath,
+        withIntermediateDirectories: true
+      )
+    } catch {
+      throw ResponseError.unknown(
+        "Failed to create directory for complete macro expansion at path: \(completeExpansionFilePath.path)"
+      )
+    }
+
+    completeExpansionFilePath =
+      completeExpansionFilePath.appendingPathComponent(sourceFileURL.lastPathComponent)
+    do {
+      try completeExpansionFileContent.write(to: completeExpansionFilePath, atomically: true, encoding: .utf8)
+    } catch {
+      throw ResponseError.unknown(
+        "Unable to write complete macro expansion to file path: \"\(completeExpansionFilePath.path)\""
+      )
+    }
+
+    let completeMacroExpansionFilePath = completeExpansionFilePath
+    let expansionURIs = macroExpansionFilePaths.map {
+      return DocumentURI($0)
+    }
+
+    if case .dictionary(let experimentalCapabilities) = self.capabilityRegistry.clientCapabilities.experimental,
+      case .bool(true) = experimentalCapabilities["workspace/peekDocuments"]
+    {
+      Task {
+        let req = PeekDocumentsRequest(
+          uri: expandMacroCommand.textDocument.uri,
+          position: expandMacroCommand.positionRange.lowerBound,
+          locations: expansionURIs
+        )
+
+        let response = await orLog("Sending PeekDocumentsRequest to Client") {
+          try await sourceKitLSPServer.sendRequestToClient(req)
+        }
+
+        if let response, !response.success {
+          logger.error("client refused to peek macro")
+        }
+      }
+    } else {
+      Task {
+        let req = ShowDocumentRequest(uri: DocumentURI(completeMacroExpansionFilePath))
+
+        let response = await orLog("Sending ShowDocumentRequest to Client") {
+          try await sourceKitLSPServer.sendRequestToClient(req)
+        }
+
+        if let response, !response.success {
+          logger.error("client refused to show document for macro expansion")
+        }
+      }
+    }
   }
 }

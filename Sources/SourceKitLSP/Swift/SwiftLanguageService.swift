@@ -943,15 +943,17 @@ extension SwiftLanguageService {
 
   public func executeCommand(_ req: ExecuteCommandRequest) async throws -> LSPAny? {
     if let command = req.swiftCommand(ofType: SemanticRefactorCommand.self) {
-      return try await semanticRefactoring(command)
+      try await semanticRefactoring(command)
     } else if let command = req.swiftCommand(ofType: ExpandMacroCommand.self),
       let experimentalFeatures = await self.sourceKitLSPServer?.options.experimentalFeatures,
       experimentalFeatures.contains(.showMacroExpansions)
     {
-      return try await expandMacro(command)
+      try await expandMacro(command)
     } else {
       throw ResponseError.unknown("unknown command \(req.command)")
     }
+
+    return nil
   }
 }
 
