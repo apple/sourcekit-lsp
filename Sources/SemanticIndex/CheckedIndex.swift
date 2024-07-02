@@ -298,9 +298,10 @@ private struct IndexOutOfDateChecker {
   /// `documentManager` must always be the same between calls to `hasFileInMemoryModifications` since it is not part of
   /// the cache key. This is fine because we always assume the `documentManager` to come from the associated value of
   /// `CheckLevel.imMemoryModifiedFiles`, which is constant.
-  private mutating func fileHasInMemoryModifications(_ uri: DocumentURI, documentManager: InMemoryDocumentManager)
-    -> Bool
-  {
+  private mutating func fileHasInMemoryModifications(
+    _ uri: DocumentURI,
+    documentManager: InMemoryDocumentManager
+  ) -> Bool {
     if let cached = fileHasInMemoryModificationsCache[uri] {
       return cached
     }

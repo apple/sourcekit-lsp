@@ -68,9 +68,9 @@ public struct SyntaxHighlightingTokens: Sendable {
   }
 
   /// Sorts the tokens in this array by their start position.
-  public func sorted(_ areInIncreasingOrder: (SyntaxHighlightingToken, SyntaxHighlightingToken) -> Bool)
-    -> SyntaxHighlightingTokens
-  {
+  public func sorted(
+    _ areInIncreasingOrder: (SyntaxHighlightingToken, SyntaxHighlightingToken) -> Bool
+  ) -> SyntaxHighlightingTokens {
     SyntaxHighlightingTokens(tokens: tokens.sorted(by: areInIncreasingOrder))
   }
 }
