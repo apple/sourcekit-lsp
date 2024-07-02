@@ -1006,6 +1006,34 @@ final class CodeActionTests: XCTestCase {
     }
   }
 
+  func testConvertIUOToProperOptional() async throws {
+    try await assertCodeActions(
+      """
+      func (a: 1️⃣(String, /* tuple */ Int)!2️⃣/*tra3️⃣iling*/4️⃣)
+      """,
+      markers: ["1️⃣", "2️⃣", "3️⃣"],
+      ranges: [("1️⃣", "2️⃣"), ("1️⃣", "3️⃣")],
+      exhaustive: false
+    ) { uri, positions in
+      [
+        CodeAction(
+          title: "Convert Implicitly Unwrapped Optional to Optional",
+          kind: .refactorInline,
+          edit: WorkspaceEdit(
+            changes: [
+              uri: [
+                TextEdit(
+                  range: positions["1️⃣"]..<positions["4️⃣"],
+                  newText: "(String, /* tuple */ Int)?/*trailing*/"
+                )
+              ]
+            ]
+          )
+        )
+      ]
+    }
+  }
+
   /// Retrieves the code action at a set of markers and asserts that it matches a list of expected code actions.
   ///
   /// - Parameters:

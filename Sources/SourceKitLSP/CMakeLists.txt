@@ -30,6 +30,7 @@ target_sources(SourceKitLSP PRIVATE
   Swift/AdjustPositionToStartOfIdentifier.swift
   Swift/CodeActions/AddDocumentation.swift
   Swift/CodeActions/ConvertIntegerLiteral.swift
+  Swift/CodeActions/ConvertImplicitlyUnwrappedOptionalToOptional.swift
   Swift/CodeActions/ConvertJSONToCodableStruct.swift
   Swift/CodeActions/PackageManifestEdits.swift
   Swift/CodeActions/SyntaxCodeActionProvider.swift
